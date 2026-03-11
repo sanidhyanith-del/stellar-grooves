@@ -1,119 +1,741 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stellar Grooves - Dashboard</title>
+    <link rel="icon" th:href="@{/images/logo.png}" type="image/png">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" th:href="@{/css/main.css}">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg">
-        <div class="container">
+        <div class="container-fluid px-3">
             <a class="navbar-brand" href="#">
-                <img th:src="@{/images/logo.png}" alt="Stellar Logo">
+                <img th:src="@{/images/logo.png}" alt="Stellar Grooves Logo" style="height:36px;width:auto;">
                 Stellar Grooves
             </a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="/logout">Logout</a></li>
-                </ul>
+            <div class="ms-auto">
+                <a class="nav-link d-inline" href="/logout">Logout</a>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <div class="row">
-            <div class="col-md-12">
-                <h2>Welcome to Stellar Grooves</h2>
-                <p>Manage and organize your music library efficiently.</p>
+    <div class="main-content">
+        <!-- Stats row -->
+        <div class="row g-3 mb-4 d-none" id="statsRow">
+            <div class="col-6 col-md">
+                <div class="card stat-card stat-clickable" id="statCardTotal" title="View all tracks">
+                    <div class="stat-value" id="statTotal">0</div>
+                    <div class="stat-label">Total Tracks</div>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="card stat-card stat-clickable" id="statCardArtists" title="Browse by artist">
+                    <div class="stat-value" id="statArtists">0</div>
+                    <div class="stat-label">Artists</div>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="card stat-card stat-clickable" id="statCardAlbums" title="Browse by album">
+                    <div class="stat-value" id="statAlbums">0</div>
+                    <div class="stat-label">Albums</div>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="card stat-card stat-clickable" id="statCardGenres" title="Browse by genre">
+                    <div class="stat-value" id="statGenres">0</div>
+                    <div class="stat-label">Genres</div>
+                </div>
+            </div>
+            <div class="col-6 col-md">
+                <div class="card stat-card" id="statCardDupes">
+                    <div class="stat-value" id="statDupes">0</div>
+                    <div class="stat-label">Duplicated Songs</div>
+                </div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
+        <div class="row g-4">
+            <!-- Scan Panel -->
+            <div class="col-12 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">Scan Directory</div>
                     <div class="card-body">
-                        <h5 class="card-title">Scan Directory</h5>
-                        <form id="scanForm">
+                        <form id="scanForm" novalidate>
                             <div class="mb-3">
                                 <label for="path" class="form-label">Music Directory Path</label>
-                                <input type="text" class="form-control" id="path" name="path" placeholder="C:\Users\Name\Music">
+                                <input type="text" class="form-control" id="path" name="path"
+                                       placeholder="/home/user/Music" autocomplete="off" required>
+                                <div class="invalid-feedback">Please enter a valid directory path.</div>
                             </div>
-                            <button type="submit" class="btn btn-primary">Start Scan</button>
+                            <button type="submit" class="btn btn-primary btn-full-mobile w-100" id="scanBtn">
+                                <span id="scanSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
+                                Start Scan
+                            </button>
                         </form>
-                        <div id="scanStatus" class="mt-2"></div>
+                        <div id="scanStatus" class="mt-3"></div>
+
+                        <hr class="my-3" style="border-color: var(--border-color)">
+
+                        <button class="btn btn-outline-danger w-100 d-none" id="clearBtn">
+                            Clear Library
+                        </button>
                     </div>
                 </div>
             </div>
-            <div class="col-md-8">
+
+            <!-- Library Panel -->
+            <div class="col-12 col-lg-8">
                 <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">My Music Library</h5>
+                    <!-- Card header: breadcrumb + filters -->
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-0" id="breadcrumbList">
+                                <li class="breadcrumb-item active">My Music Library</li>
+                            </ol>
+                        </nav>
+                        <div class="d-flex gap-2 flex-wrap" id="trackFilters">
+                            <select id="genreFilter" class="form-select form-select-sm" style="max-width:160px">
+                                <option value="">All Genres</option>
+                                <option value="CLASSIC_ROCK">Classic Rock</option>
+                                <option value="HARD_ROCK">Hard Rock</option>
+                                <option value="HAIR_METAL">Hair Metal</option>
+                                <option value="HEAVY_METAL">Heavy Metal</option>
+                                <option value="THRASH_METAL">Thrash Metal</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                            <input type="search" id="searchInput" class="form-control form-control-sm"
+                                   placeholder="Filter title, artist, album…" style="max-width:220px">
+                        </div>
+                    </div>
+
+                    <!-- Artists view -->
+                    <div id="viewArtists" class="d-none">
                         <div class="table-responsive">
-                            <table class="table table-striped" id="musicTable">
+                            <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Title</th>
                                         <th>Artist</th>
-                                        <th>Album</th>
-                                        <th>Genre</th>
-                                        <th>Decade</th>
+                                        <th class="text-end hide-xs">Albums</th>
+                                        <th class="text-end">Tracks</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <!-- Populated by JS -->
-                                </tbody>
+                                <tbody id="artistsBody"></tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <!-- Albums view -->
+                    <div id="viewAlbums" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Album</th>
+                                        <th class="hide-xs">Artist</th>
+                                        <th class="text-end">Tracks</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="albumsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tracks view -->
+                    <div id="viewTracks" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-collapse-sm" id="musicTable">
+                                <thead>
+                                    <tr>
+                                        <th class="col-play"></th>
+                                        <th class="col-sortable" data-col="title">Title <span class="sort-icon"></span></th>
+                                        <th class="col-sortable" data-col="artist">Artist <span class="sort-icon"></span></th>
+                                        <th class="col-sortable hide-xs" data-col="album">Album <span class="sort-icon"></span></th>
+                                        <th class="col-sortable" data-col="genre">Genre <span class="sort-icon"></span></th>
+                                        <th class="col-sortable hide-xs" data-col="year">Decade <span class="sort-icon"></span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="musicTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="emptyState" class="empty-state">
+                        <div class="empty-state-icon">🎵</div>
+                        <p>No music scanned yet.<br>Enter a directory path and click <strong>Start Scan</strong>.</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Audio Player Bar -->
+    <div id="playerBar" class="player-bar d-none">
+        <div class="player-info">
+            <div id="playerTitle" class="player-title"></div>
+            <div id="playerArtist" class="player-artist"></div>
+        </div>
+        <div class="player-controls">
+            <button id="playerPlayPause" class="btn-player" title="Play / Pause">▶</button>
+            <span id="playerCurrentTime" class="player-time">0:00</span>
+            <input type="range" id="playerSeek" class="player-seek" min="0" max="100" value="0" step="0.1">
+            <span id="playerDuration" class="player-time">0:00</span>
+            <input type="range" id="playerVolume" class="player-volume" min="0" max="1" step="0.05" value="1" title="Volume">
+        </div>
+        <audio id="audioPlayer" preload="none"></audio>
+    </div>
+
     <script>
-        // Simple JS to handle API calls
+        const GENRE_CLASSES = {
+            CLASSIC_ROCK: 'genre-CLASSIC_ROCK',
+            HARD_ROCK:    'genre-HARD_ROCK',
+            HAIR_METAL:   'genre-HAIR_METAL',
+            HEAVY_METAL:  'genre-HEAVY_METAL',
+            THRASH_METAL: 'genre-THRASH_METAL',
+            OTHER:        'genre-OTHER'
+        };
+
+        const GENRE_LABELS = {
+            CLASSIC_ROCK: 'Classic Rock',
+            HARD_ROCK:    'Hard Rock',
+            HAIR_METAL:   'Hair Metal',
+            HEAVY_METAL:  'Heavy Metal',
+            THRASH_METAL: 'Thrash Metal',
+            OTHER:        'Other'
+        };
+
+        let allFiles = [];
+        let sortState = { col: null, dir: 'asc' };
+
+        // nav: { view: 'library'|'artists'|'albums'|'tracks', artist: null|string, album: null|string }
+        let nav = { view: 'library', artist: null, album: null };
+
+        // ── Helpers ───────────────────────────────────────────────
+
+        function text(val) {
+            return (val && val.trim()) ? val.trim() : '—';
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.appendChild(document.createTextNode(str || ''));
+            return d.innerHTML;
+        }
+
+        function genreBadge(genre) {
+            const cls   = GENRE_CLASSES[genre] || 'genre-OTHER';
+            const label = GENRE_LABELS[genre]  || 'Other';
+            const span  = document.createElement('span');
+            span.className   = 'badge ' + cls;
+            span.textContent = label;
+            return span;
+        }
+
+        function decadeFromYear(year) {
+            if (!year || year.length < 4) return '—';
+            const y = parseInt(year.substring(0, 4), 10);
+            if (isNaN(y)) return '—';
+            return Math.floor(y / 10) * 10 + 's';
+        }
+
+        // ── Stats ─────────────────────────────────────────────────
+
+        function updateStats() {
+            const artists = new Set(allFiles.map(f => f.artist).filter(Boolean));
+            const albums  = new Set(allFiles.map(f => f.album).filter(Boolean));
+            const genres  = new Set(allFiles.map(f => f.genre || 'OTHER'));
+
+            // Count tracks that share (title + artist) with at least one other track
+            const metaCount = {};
+            allFiles.forEach(f => {
+                if (f.title && f.artist) {
+                    const key = f.title.toLowerCase() + '|' + f.artist.toLowerCase();
+                    metaCount[key] = (metaCount[key] || 0) + 1;
+                }
+            });
+            const dupes = Object.values(metaCount).reduce((sum, n) => sum + (n > 1 ? n : 0), 0);
+
+            document.getElementById('statTotal').textContent   = allFiles.length;
+            document.getElementById('statArtists').textContent = artists.size;
+            document.getElementById('statAlbums').textContent  = albums.size;
+            document.getElementById('statGenres').textContent  = genres.size;
+            document.getElementById('statDupes').textContent   = dupes;
+
+            const statsRow = document.getElementById('statsRow');
+            const clearBtn = document.getElementById('clearBtn');
+            if (allFiles.length > 0) {
+                statsRow.classList.remove('d-none');
+                clearBtn.classList.remove('d-none');
+            } else {
+                statsRow.classList.add('d-none');
+                clearBtn.classList.add('d-none');
+            }
+        }
+
+        // ── Navigation / Breadcrumb ───────────────────────────────
+
+        function navigate(newNav) {
+            nav = newNav;
+            renderBreadcrumb();
+            renderCurrentView();
+        }
+
+        function renderBreadcrumb() {
+            const ol = document.getElementById('breadcrumbList');
+            ol.innerHTML = '';
+
+            function crumb(label, clickFn) {
+                const li = document.createElement('li');
+                li.className = 'breadcrumb-item' + (clickFn ? '' : ' active');
+                if (clickFn) {
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.textContent = label;
+                    a.addEventListener('click', e => { e.preventDefault(); clickFn(); });
+                    li.appendChild(a);
+                } else {
+                    li.textContent = label;
+                }
+                ol.appendChild(li);
+            }
+
+            const isHome = nav.view === 'library';
+            const homeClick = isHome ? null : () => navigate({ view: 'library', artist: null, album: null });
+
+            if (isHome) {
+                crumb('My Music Library', null);
+            } else if (nav.view === 'artists') {
+                crumb('My Music Library', homeClick);
+                crumb('Artists', null);
+            } else if (nav.view === 'albums' && !nav.artist) {
+                crumb('My Music Library', homeClick);
+                crumb('Albums', null);
+            } else if (nav.view === 'albums' && nav.artist) {
+                crumb('My Music Library', homeClick);
+                crumb('Artists', () => navigate({ view: 'artists', artist: null, album: null }));
+                crumb(nav.artist, null);
+            } else if (nav.view === 'tracks' && nav.album && nav.artist) {
+                crumb('My Music Library', homeClick);
+                crumb('Artists', () => navigate({ view: 'artists', artist: null, album: null }));
+                crumb(nav.artist, () => navigate({ view: 'albums', artist: nav.artist, album: null }));
+                crumb(nav.album, null);
+            } else if (nav.view === 'tracks' && nav.album && !nav.artist) {
+                crumb('My Music Library', homeClick);
+                crumb('Albums', () => navigate({ view: 'albums', artist: null, album: null }));
+                crumb(nav.album, null);
+            } else {
+                crumb('My Music Library', null);
+            }
+
+            // Show track filters only on top-level library/tracks view
+            const showFilters = nav.view === 'library' || (nav.view === 'tracks' && !nav.album && !nav.artist);
+            document.getElementById('trackFilters').classList.toggle('d-none', !showFilters);
+        }
+
+        // ── View rendering ────────────────────────────────────────
+
+        function renderCurrentView() {
+            const views = ['viewArtists', 'viewAlbums', 'viewTracks', 'emptyState'];
+            views.forEach(id => document.getElementById(id).classList.add('d-none'));
+
+            if (allFiles.length === 0) {
+                document.getElementById('emptyState').classList.remove('d-none');
+                return;
+            }
+
+            if (nav.view === 'artists') {
+                document.getElementById('viewArtists').classList.remove('d-none');
+                renderArtistsView();
+            } else if (nav.view === 'albums') {
+                document.getElementById('viewAlbums').classList.remove('d-none');
+                renderAlbumsView();
+            } else {
+                document.getElementById('viewTracks').classList.remove('d-none');
+                renderTracksView();
+            }
+        }
+
+        // ── Artists view ──────────────────────────────────────────
+
+        function renderArtistsView() {
+            const artistMap = {};
+            allFiles.forEach(f => {
+                const a = f.artist || '(Unknown Artist)';
+                if (!artistMap[a]) artistMap[a] = { tracks: 0, albums: new Set() };
+                artistMap[a].tracks++;
+                if (f.album) artistMap[a].albums.add(f.album);
+            });
+
+            const tbody = document.getElementById('artistsBody');
+            tbody.innerHTML = '';
+            Object.entries(artistMap)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .forEach(([artist, data]) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'drill-row';
+                    tr.innerHTML = `
+                        <td><span class="drill-link">${escapeHtml(artist)}</span></td>
+                        <td class="text-end hide-xs">${data.albums.size}</td>
+                        <td class="text-end">${data.tracks}</td>
+                    `;
+                    tr.addEventListener('click', () =>
+                        navigate({ view: 'albums', artist, album: null })
+                    );
+                    tbody.appendChild(tr);
+                });
+        }
+
+        // ── Albums view ───────────────────────────────────────────
+
+        function renderAlbumsView() {
+            const sourceFiles = nav.artist
+                ? allFiles.filter(f => (f.artist || '(Unknown Artist)') === nav.artist)
+                : allFiles;
+
+            const albumMap = {};
+            sourceFiles.forEach(f => {
+                const alb = f.album  || '(Unknown Album)';
+                const art = f.artist || '—';
+                const key = alb + '||' + art;
+                if (!albumMap[key]) albumMap[key] = { album: alb, artist: art, tracks: 0 };
+                albumMap[key].tracks++;
+            });
+
+            const tbody = document.getElementById('albumsBody');
+            tbody.innerHTML = '';
+            Object.values(albumMap)
+                .sort((a, b) => a.album.localeCompare(b.album))
+                .forEach(({ album, artist, tracks }) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'drill-row';
+                    tr.innerHTML = `
+                        <td><span class="drill-link">${escapeHtml(album)}</span></td>
+                        <td class="hide-xs">${escapeHtml(artist)}</td>
+                        <td class="text-end">${tracks}</td>
+                    `;
+                    tr.addEventListener('click', () =>
+                        navigate({ view: 'tracks', artist: nav.artist || artist, album })
+                    );
+                    tbody.appendChild(tr);
+                });
+        }
+
+        // ── Tracks view ───────────────────────────────────────────
+
+        function getVisibleTracks() {
+            let files = allFiles;
+
+            // Drill-down filters
+            if (nav.artist) files = files.filter(f => (f.artist || '(Unknown Artist)') === nav.artist);
+            if (nav.album)  files = files.filter(f => (f.album  || '(Unknown Album)')  === nav.album);
+
+            // Genre + search (only on top-level tracks)
+            if (!nav.artist && !nav.album) {
+                const genre = document.getElementById('genreFilter').value;
+                if (genre) files = files.filter(f => f.genre === genre);
+
+                const q = document.getElementById('searchInput').value.toLowerCase();
+                if (q) files = files.filter(f =>
+                    (f.title  || '').toLowerCase().includes(q) ||
+                    (f.artist || '').toLowerCase().includes(q) ||
+                    (f.album  || '').toLowerCase().includes(q)
+                );
+            }
+
+            // Sort
+            if (sortState.col) {
+                files = [...files].sort((a, b) => {
+                    let av = a[sortState.col] || '';
+                    let bv = b[sortState.col] || '';
+                    const cmp = av.localeCompare(bv);
+                    return sortState.dir === 'asc' ? cmp : -cmp;
+                });
+            }
+
+            return files;
+        }
+
+        function renderTracksView() {
+            const files = getVisibleTracks();
+            const tbody = document.getElementById('musicTableBody');
+            tbody.innerHTML = '';
+
+            files.forEach(file => {
+                const tr = document.createElement('tr');
+                tr.dataset.fileId = file.id;
+                if (currentFileId === file.id) tr.classList.add('table-active');
+
+                const tdPlay = document.createElement('td');
+                tdPlay.className = 'col-play';
+                const btnPlay = document.createElement('button');
+                btnPlay.className = 'btn-play-row' + (currentFileId === file.id ? ' playing' : '');
+                btnPlay.title = 'Play';
+                btnPlay.textContent = (currentFileId === file.id && !audioEl.paused) ? '⏸' : '▶';
+                btnPlay.addEventListener('click', () => playTrack(file));
+                tdPlay.appendChild(btnPlay);
+                tr.appendChild(tdPlay);
+
+                const tdTitle = document.createElement('td');
+                tdTitle.textContent = text(file.title);
+                tr.appendChild(tdTitle);
+
+                const tdArtist = document.createElement('td');
+                tdArtist.textContent = text(file.artist);
+                tr.appendChild(tdArtist);
+
+                const tdAlbum = document.createElement('td');
+                tdAlbum.className = 'hide-xs';
+                tdAlbum.textContent = text(file.album);
+                tr.appendChild(tdAlbum);
+
+                const tdGenre = document.createElement('td');
+                if (file.genre === 'OTHER') {
+                    const select = document.createElement('select');
+                    select.className = 'form-select form-select-sm genre-select';
+                    Object.keys(GENRE_LABELS).forEach(key => {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        opt.textContent = GENRE_LABELS[key];
+                        if (key === file.genre) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+                    select.addEventListener('change', async () => {
+                        const newGenre = select.value;
+                        try {
+                            const resp = await fetch(`/api/library/files/${file.id}/genre`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ genre: newGenre })
+                            });
+                            if (resp.ok) {
+                                const idx = allFiles.findIndex(f => f.id === file.id);
+                                if (idx !== -1) allFiles[idx].genre = newGenre;
+                                renderTracksView();
+                            } else {
+                                select.value = file.genre;
+                            }
+                        } catch (err) {
+                            select.value = file.genre;
+                        }
+                    });
+                    tdGenre.appendChild(select);
+                } else {
+                    tdGenre.appendChild(genreBadge(file.genre));
+                }
+                tr.appendChild(tdGenre);
+
+                const tdDecade = document.createElement('td');
+                tdDecade.className = 'hide-xs';
+                tdDecade.textContent = decadeFromYear(file.year);
+                tr.appendChild(tdDecade);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ── Sort headers ──────────────────────────────────────────
+
+        document.querySelectorAll('th.col-sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const col = th.dataset.col;
+                if (sortState.col === col) {
+                    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortState.col = col;
+                    sortState.dir = 'asc';
+                }
+                document.querySelectorAll('th.col-sortable').forEach(h => {
+                    h.querySelector('.sort-icon').textContent =
+                        h.dataset.col === sortState.col
+                            ? (sortState.dir === 'asc' ? ' ▲' : ' ▼')
+                            : '';
+                });
+                renderTracksView();
+            });
+        });
+
+        // ── Stat card clicks ──────────────────────────────────────
+
+        document.getElementById('statCardTotal').addEventListener('click', () =>
+            navigate({ view: 'library', artist: null, album: null })
+        );
+        document.getElementById('statCardArtists').addEventListener('click', () =>
+            navigate({ view: 'artists', artist: null, album: null })
+        );
+        document.getElementById('statCardAlbums').addEventListener('click', () =>
+            navigate({ view: 'albums', artist: null, album: null })
+        );
+        document.getElementById('statCardGenres').addEventListener('click', () =>
+            navigate({ view: 'library', artist: null, album: null })
+        );
+
+        // ── Filter listeners (top-level tracks) ──────────────────
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            if (nav.view === 'library' || (nav.view === 'tracks' && !nav.artist && !nav.album)) {
+                renderTracksView();
+            }
+        });
+
+        document.getElementById('genreFilter').addEventListener('change', () => {
+            if (nav.view === 'library' || (nav.view === 'tracks' && !nav.artist && !nav.album)) {
+                renderTracksView();
+            }
+        });
+
+        // ── Scan ──────────────────────────────────────────────────
+
         document.getElementById('scanForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const path = document.getElementById('path').value;
+            const pathVal  = document.getElementById('path').value.trim();
             const statusDiv = document.getElementById('scanStatus');
-            statusDiv.innerHTML = '<span class="text-info">Scanning...</span>';
-            
+            const btn      = document.getElementById('scanBtn');
+            const spinner  = document.getElementById('scanSpinner');
+
+            if (!pathVal) {
+                document.getElementById('path').classList.add('is-invalid');
+                return;
+            }
+            document.getElementById('path').classList.remove('is-invalid');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            statusDiv.innerHTML = '<span class="status-scanning">⏳ Scanning…</span>';
+
             try {
                 const response = await fetch('/api/library/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: path })
+                    body: JSON.stringify({ path: pathVal })
                 });
+                const data = await response.json();
                 if (response.ok) {
-                    statusDiv.innerHTML = '<span class="text-success">Scan complete!</span>';
-                    loadLibrary();
+                    const msg = data.filesFound > 0
+                        ? `✓ Scan complete — ${data.filesFound} new file(s) imported.`
+                        : `✓ Scan complete — no new files found.`;
+                    statusDiv.innerHTML = `<span class="status-success">${msg}</span>`;
+                    await loadLibrary();
                 } else {
-                    statusDiv.innerHTML = '<span class="text-danger">Scan failed.</span>';
+                    const span = document.createElement('span');
+                    span.className = 'status-error';
+                    span.textContent = '✗ ' + (data.error || 'Scan failed');
+                    statusDiv.replaceChildren(span);
                 }
             } catch (err) {
-                statusDiv.innerHTML = '<span class="text-danger">Error: ' + err.message + '</span>';
+                const span = document.createElement('span');
+                span.className = 'status-error';
+                span.textContent = '✗ Network error: ' + err.message;
+                statusDiv.replaceChildren(span);
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
             }
         });
+
+        // ── Clear library ─────────────────────────────────────────
+
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            if (!confirm('Clear your entire library? This cannot be undone.')) return;
+            try {
+                const resp = await fetch('/api/library/files', { method: 'DELETE' });
+                if (resp.ok) {
+                    allFiles = [];
+                    navigate({ view: 'library', artist: null, album: null });
+                    updateStats();
+                    document.getElementById('scanStatus').innerHTML =
+                        '<span class="status-success">Library cleared.</span>';
+                }
+            } catch (err) {
+                console.error('Clear failed', err);
+            }
+        });
+
+        // ── Load library ──────────────────────────────────────────
 
         async function loadLibrary() {
             try {
                 const response = await fetch('/api/library/files');
-                const files = await response.json();
-                const tbody = document.querySelector('#musicTable tbody');
-                tbody.innerHTML = '';
-                files.forEach(file => {
-                    const row = `<tr>
-                        <td>${file.title || 'Unknown'}</td>
-                        <td>${file.artist || 'Unknown'}</td>
-                        <td>${file.album || 'Unknown'}</td>
-                        <td><span class="badge genre-badge">${file.primaryGenre || 'N/A'}</span></td>
-                        <td>${file.year ? file.year.substring(0, 3) + '0s' : 'Unknown'}</td>
-                    </tr>`;
-                    tbody.innerHTML += row;
-                });
+                allFiles = await response.json();
+                updateStats();
+                renderCurrentView();
             } catch (err) {
                 console.error('Failed to load library', err);
             }
+        }
+
+        // ── Audio Player ──────────────────────────────────────────
+
+        const audioEl  = document.getElementById('audioPlayer');
+        const playerBar = document.getElementById('playerBar');
+        let currentFileId = null;
+
+        function playTrack(file) {
+            const switching = currentFileId !== file.id;
+            currentFileId = file.id;
+
+            document.getElementById('playerTitle').textContent  = text(file.title);
+            document.getElementById('playerArtist').textContent = text(file.artist);
+            playerBar.classList.remove('d-none');
+            document.body.classList.add('player-open');
+
+            if (switching) {
+                audioEl.src = `/api/library/files/${file.id}/stream`;
+                audioEl.load();
+            }
+            audioEl.play();
+        }
+
+        function syncPlayerBtn() {
+            const btn = document.getElementById('playerPlayPause');
+            btn.textContent = audioEl.paused ? '▶' : '⏸';
+            // sync row buttons too
+            document.querySelectorAll('.btn-play-row').forEach(b => {
+                const tr = b.closest('tr');
+                const isActive = tr && tr.dataset.fileId === currentFileId;
+                b.textContent = (isActive && !audioEl.paused) ? '⏸' : '▶';
+                b.classList.toggle('playing', isActive);
+            });
+        }
+
+        document.getElementById('playerPlayPause').addEventListener('click', () => {
+            if (audioEl.paused) audioEl.play(); else audioEl.pause();
+        });
+
+        audioEl.addEventListener('play',  syncPlayerBtn);
+        audioEl.addEventListener('pause', syncPlayerBtn);
+        audioEl.addEventListener('ended', syncPlayerBtn);
+
+        audioEl.addEventListener('timeupdate', () => {
+            if (!isNaN(audioEl.duration) && audioEl.duration > 0) {
+                document.getElementById('playerSeek').value =
+                    (audioEl.currentTime / audioEl.duration) * 100;
+                document.getElementById('playerCurrentTime').textContent =
+                    formatTime(audioEl.currentTime);
+            }
+        });
+
+        audioEl.addEventListener('loadedmetadata', () => {
+            document.getElementById('playerDuration').textContent = formatTime(audioEl.duration);
+        });
+
+        document.getElementById('playerSeek').addEventListener('input', () => {
+            if (!isNaN(audioEl.duration)) {
+                audioEl.currentTime =
+                    (document.getElementById('playerSeek').value / 100) * audioEl.duration;
+            }
+        });
+
+        document.getElementById('playerVolume').addEventListener('input', () => {
+            audioEl.volume = document.getElementById('playerVolume').value;
+        });
+
+        function formatTime(secs) {
+            if (isNaN(secs) || secs < 0) return '0:00';
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
         }
 
         loadLibrary();

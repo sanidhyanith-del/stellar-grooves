@@ -1,9 +1,14 @@
 package com.stellarideas.grooves.controller;
 
+import com.stellarideas.grooves.dto.LoginRequest;
+import com.stellarideas.grooves.dto.SignupRequest;
 import com.stellarideas.grooves.model.Role;
 import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
+import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,6 +25,9 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     @Autowired
     AuthenticationManager authenticationManager;
 
@@ -33,26 +41,30 @@ public class AuthController {
     JwtUtils jwtUtils;
 
     @PostMapping("/signin")
-    public ResponseEntity<?> authenticateUser(@RequestBody Map<String, String> loginRequest) {
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.get("username"), loginRequest.get("password")));
+                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
-        
-        return ResponseEntity.ok(Map.of("token", jwt, "username", loginRequest.get("username")));
+
+        logger.info("User '{}' signed in", loginRequest.getUsername());
+        return ResponseEntity.ok(Map.of("token", jwt, "username", loginRequest.getUsername()));
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@RequestBody Map<String, Object> signUpRequest) {
-        if (userRepository.existsByUsername((String) signUpRequest.get("username"))) {
-            return ResponseEntity.badRequest().body("Error: Username is already taken!");
+    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
+        if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Username is already taken"));
+        }
+        if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email is already in use"));
         }
 
         User user = User.builder()
-                .username((String) signUpRequest.get("username"))
-                .email((String) signUpRequest.get("email"))
-                .password(encoder.encode((String) signUpRequest.get("password")))
+                .username(signUpRequest.getUsername())
+                .email(signUpRequest.getEmail())
+                .password(encoder.encode(signUpRequest.getPassword()))
                 .build();
 
         Set<Role> roles = new HashSet<>();
@@ -60,6 +72,7 @@ public class AuthController {
         user.setRoles(roles);
         userRepository.save(user);
 
-        return ResponseEntity.ok("User registered successfully!");
+        logger.info("New user registered: '{}'", signUpRequest.getUsername());
+        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
     }
 }

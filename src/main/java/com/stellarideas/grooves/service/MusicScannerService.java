@@ -8,16 +8,23 @@ import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.nio.file.*;
-import java.util.*;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class MusicScannerService {
+
+    private static final Logger logger = LoggerFactory.getLogger(MusicScannerService.class);
+
+    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".mp3", ".m4a", ".flac");
 
     @Autowired
     private MusicCatalogService catalogService;
@@ -25,31 +32,55 @@ public class MusicScannerService {
     @Autowired
     private MusicFileRepository repository;
 
-    public void scanDirectory(User user, String directoryPath) throws Exception {
-        Path root = Paths.get(directoryPath);
-        if (!Files.exists(root) || !Files.isDirectory(root)) {
-            throw new IllegalArgumentException("Invalid directory path");
+    /**
+     * Scans a directory for supported audio files, extracts metadata, and saves
+     * them to the library for the given user.
+     *
+     * @return the number of files successfully imported
+     */
+    public int scanDirectory(User user, String directoryPath) throws Exception {
+        Path root = Paths.get(directoryPath).normalize();
+
+        List<Path> musicFilePaths;
+        try (Stream<Path> walk = Files.walk(root)) {
+            musicFilePaths = walk
+                    .filter(p -> {
+                        String name = p.toString().toLowerCase();
+                        return SUPPORTED_EXTENSIONS.stream().anyMatch(name::endsWith);
+                    })
+                    .collect(Collectors.toList());
         }
 
-        List<Path> musicFilesPaths = Files.walk(root)
-                .filter(p -> p.toString().toLowerCase().endsWith(".mp3") || 
-                             p.toString().toLowerCase().endsWith(".m4a") || 
-                             p.toString().toLowerCase().endsWith(".flac"))
-                .collect(Collectors.toList());
+        logger.info("Found {} audio files in '{}' for user '{}'", musicFilePaths.size(), root, user.getUsername());
 
-        for (Path path : musicFilesPaths) {
+        int saved = 0;
+        int skipped = 0;
+
+        for (Path path : musicFilePaths) {
             try {
+                if (repository.existsByFilePathAndUser(path.toString(), user)) {
+                    logger.debug("Skipping duplicate path: '{}' already imported for user '{}'", path.getFileName(), user.getUsername());
+                    skipped++;
+                    continue;
+                }
                 AudioFile f = AudioFileIO.read(path.toFile());
                 Tag tag = f.getTag();
-                
-                String artist = tag.getFirst(FieldKey.ARTIST);
-                String album = tag.getFirst(FieldKey.ALBUM);
-                String title = tag.getFirst(FieldKey.TITLE);
-                String year = tag.getFirst(FieldKey.YEAR);
 
+                String artist = safeGet(tag, FieldKey.ARTIST);
+                String album  = safeGet(tag, FieldKey.ALBUM);
+                String title  = safeGet(tag, FieldKey.TITLE);
+                String year   = safeGet(tag, FieldKey.YEAR);
+
+                if (!title.isBlank() && !artist.isBlank()
+                        && repository.existsByTitleAndArtistAndUser(title, artist, user)) {
+                    logger.debug("Skipping duplicate metadata: '{}' by '{}' already imported for user '{}'", title, artist, user.getUsername());
+                    skipped++;
+                    continue;
+                }
+
+                // Only the first-listed genre is used for classification
                 Set<Genre> genres = catalogService.identifyGenres(artist);
-                Genre primaryGenre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
-                boolean multiGenre = genres.size() > 1;
+                Genre genre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
 
                 MusicFile musicFile = MusicFile.builder()
                         .user(user)
@@ -59,14 +90,28 @@ public class MusicScannerService {
                         .album(album)
                         .title(title)
                         .year(year)
-                        .primaryGenre(primaryGenre)
-                        .multiGenre(multiGenre)
+                        .genre(genre)
                         .build();
 
                 repository.save(musicFile);
+                saved++;
             } catch (Exception e) {
-                // Log and continue with next file
+                logger.warn("Skipping file '{}': {}", path.getFileName(), e.getMessage());
+                skipped++;
             }
+        }
+
+        logger.info("Scan complete for user '{}': {} saved, {} skipped", user.getUsername(), saved, skipped);
+        return saved;
+    }
+
+    private String safeGet(Tag tag, FieldKey key) {
+        try {
+            if (tag == null) return "";
+            String val = tag.getFirst(key);
+            return val != null ? val.trim() : "";
+        } catch (Exception e) {
+            return "";
         }
     }
 }
