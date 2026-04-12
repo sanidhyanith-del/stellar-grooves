@@ -1,5 +1,6 @@
 package com.stellarideas.grooves.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -12,6 +13,7 @@ public class User {
 
     private String username;
 
+    @JsonIgnore
     private String password;
 
     private String email;
@@ -48,6 +50,7 @@ public class User {
         this.username = username;
     }
 
+    @JsonIgnore
     public String getPassword() {
         return password;
     }

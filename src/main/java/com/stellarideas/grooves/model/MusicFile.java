@@ -2,14 +2,22 @@ package com.stellarideas.grooves.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "music_files")
+@CompoundIndexes({
+    @CompoundIndex(name = "user_genre", def = "{'user.$id': 1, 'genre': 1}"),
+    @CompoundIndex(name = "user_filepath", def = "{'user.$id': 1, 'filePath': 1}", unique = true),
+    @CompoundIndex(name = "user_title_artist", def = "{'user.$id': 1, 'title': 1, 'artist': 1}")
+})
 public class MusicFile {
     @Id
     private String id;
 
+    @JsonIgnore
     private String filePath;
     private String fileName;
     private String artist;
@@ -41,6 +49,7 @@ public class MusicFile {
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
+    @JsonIgnore
     public String getFilePath() { return filePath; }
     public void setFilePath(String filePath) { this.filePath = filePath; }
 

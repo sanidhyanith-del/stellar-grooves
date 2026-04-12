@@ -15,6 +15,7 @@ class MusicCatalogServiceTest {
     @BeforeEach
     void setUp() {
         service = new MusicCatalogService();
+        service.loadCatalog();
     }
 
     @Test

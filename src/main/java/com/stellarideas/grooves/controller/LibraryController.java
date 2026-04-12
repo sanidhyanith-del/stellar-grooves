@@ -2,13 +2,14 @@ package com.stellarideas.grooves.controller;
 
 import com.stellarideas.grooves.model.Genre;
 import com.stellarideas.grooves.model.MusicFile;
+import com.stellarideas.grooves.model.Playlist;
 import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.MusicFileRepository;
+import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.service.MusicScannerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -16,9 +17,10 @@ import org.springframework.http.HttpRange;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.core.io.support.ResourceRegion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -31,18 +33,21 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/library")
-public class LibraryController {
+public class LibraryController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(LibraryController.class);
 
-    @Autowired
-    private MusicScannerService scannerService;
+    private final MusicScannerService scannerService;
+    private final MusicFileRepository musicFileRepository;
+    private final PlaylistRepository playlistRepository;
 
-    @Autowired
-    private MusicFileRepository musicFileRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    public LibraryController(UserRepository userRepository, MusicScannerService scannerService,
+                             MusicFileRepository musicFileRepository, PlaylistRepository playlistRepository) {
+        super(userRepository);
+        this.scannerService = scannerService;
+        this.musicFileRepository = musicFileRepository;
+        this.playlistRepository = playlistRepository;
+    }
 
     @PostMapping("/scan")
     public ResponseEntity<?> scanDirectory(@RequestBody Map<String, String> request) {
@@ -62,18 +67,40 @@ public class LibraryController {
     }
 
     @GetMapping("/files")
-    public List<MusicFile> getFiles(@RequestParam(required = false) String genre) {
+    public ResponseEntity<?> getFiles(
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false, defaultValue = "50") int size) {
         User user = getCurrentUser();
-        if (genre == null || genre.isBlank()) {
-            return musicFileRepository.findByUser(user);
+        Genre g = null;
+        if (genre != null && !genre.isBlank()) {
+            try {
+                g = Genre.valueOf(genre.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Unknown genre: " + genre +
+                        ". Valid values: CLASSIC_ROCK, HARD_ROCK, HAIR_METAL, HEAVY_METAL, THRASH_METAL, OTHER");
+            }
         }
-        try {
-            Genre g = Genre.valueOf(genre.toUpperCase());
-            return musicFileRepository.findByUserAndGenre(user, g);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Unknown genre: " + genre +
-                    ". Valid values: CLASSIC_ROCK, HARD_ROCK, HAIR_METAL, HEAVY_METAL, THRASH_METAL, OTHER");
+
+        // When page is not specified, return all results (backwards compatible with frontend)
+        if (page == null) {
+            List<MusicFile> files = (g == null)
+                    ? musicFileRepository.findByUser(user)
+                    : musicFileRepository.findByUserAndGenre(user, g);
+            return ResponseEntity.ok(files);
         }
+
+        // Paginated response
+        Page<MusicFile> result = (g == null)
+                ? musicFileRepository.findByUser(user, PageRequest.of(page, size))
+                : musicFileRepository.findByUserAndGenre(user, g, PageRequest.of(page, size));
+        return ResponseEntity.ok(Map.of(
+                "content", result.getContent(),
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalElements", result.getTotalElements(),
+                "totalPages", result.getTotalPages()
+        ));
     }
 
     @GetMapping("/files/{id}/stream")
@@ -145,13 +172,42 @@ public class LibraryController {
         return ResponseEntity.ok(Map.of("message", "Genre updated", "genre", genre.name()));
     }
 
+    @Transactional
+    @DeleteMapping("/files/{id}")
+    public ResponseEntity<?> deleteFile(@PathVariable String id) {
+        User user = getCurrentUser();
+        Optional<MusicFile> fileOpt = musicFileRepository.findByIdAndUser(id, user);
+        if (fileOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        musicFileRepository.delete(fileOpt.get());
+        removeFileFromPlaylists(id, user);
+        logger.info("User '{}' deleted file id={}", user.getUsername(), id);
+        return ResponseEntity.ok(Map.of("message", "File deleted"));
+    }
+
+    @Transactional
     @DeleteMapping("/files")
     public ResponseEntity<?> clearLibrary() {
         User user = getCurrentUser();
         List<MusicFile> files = musicFileRepository.findByUser(user);
         musicFileRepository.deleteAll(files);
-        logger.info("User '{}' cleared their library ({} files removed)", user.getUsername(), files.size());
+        playlistRepository.deleteByUser(user);
+        logger.info("User '{}' cleared their library ({} files removed, playlists deleted)", user.getUsername(), files.size());
         return ResponseEntity.ok(Map.of("message", "Library cleared", "filesRemoved", files.size()));
+    }
+
+    private void removeFileFromPlaylists(String fileId, User user) {
+        List<Playlist> playlists = playlistRepository.findByUser(user);
+        List<Playlist> modified = new java.util.ArrayList<>();
+        for (Playlist p : playlists) {
+            if (p.getTrackIds().remove(fileId)) {
+                modified.add(p);
+            }
+        }
+        if (!modified.isEmpty()) {
+            playlistRepository.saveAll(modified);
+        }
     }
 
     private void validateScanPath(String path) throws IOException {
@@ -170,10 +226,4 @@ public class LibraryController {
         }
     }
 
-    private User getCurrentUser() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String username = ((UserDetails) principal).getUsername();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("Authenticated user not found in database"));
-    }
 }

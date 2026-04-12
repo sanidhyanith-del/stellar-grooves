@@ -10,10 +10,11 @@ import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -25,12 +26,18 @@ public class MusicScannerService {
     private static final Logger logger = LoggerFactory.getLogger(MusicScannerService.class);
 
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".mp3", ".m4a", ".flac");
+    private static final int DEFAULT_MAX_DEPTH = 20;
 
-    @Autowired
-    private MusicCatalogService catalogService;
+    @Value("${stellar.grooves.scan.maxDepth:" + DEFAULT_MAX_DEPTH + "}")
+    private int maxDepth;
 
-    @Autowired
-    private MusicFileRepository repository;
+    private final MusicCatalogService catalogService;
+    private final MusicFileRepository repository;
+
+    public MusicScannerService(MusicCatalogService catalogService, MusicFileRepository repository) {
+        this.catalogService = catalogService;
+        this.repository = repository;
+    }
 
     /**
      * Scans a directory for supported audio files, extracts metadata, and saves
@@ -42,8 +49,9 @@ public class MusicScannerService {
         Path root = Paths.get(directoryPath).normalize();
 
         List<Path> musicFilePaths;
-        try (Stream<Path> walk = Files.walk(root)) {
+        try (Stream<Path> walk = Files.walk(root, maxDepth, FileVisitOption.FOLLOW_LINKS)) {
             musicFilePaths = walk
+                    .filter(p -> !Files.isSymbolicLink(p))
                     .filter(p -> {
                         String name = p.toString().toLowerCase();
                         return SUPPORTED_EXTENSIONS.stream().anyMatch(name::endsWith);
@@ -53,8 +61,8 @@ public class MusicScannerService {
 
         logger.info("Found {} audio files in '{}' for user '{}'", musicFilePaths.size(), root, user.getUsername());
 
-        int saved = 0;
         int skipped = 0;
+        List<MusicFile> batch = new ArrayList<>();
 
         for (Path path : musicFilePaths) {
             try {
@@ -82,7 +90,7 @@ public class MusicScannerService {
                 Set<Genre> genres = catalogService.identifyGenres(artist);
                 Genre genre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
 
-                MusicFile musicFile = MusicFile.builder()
+                batch.add(MusicFile.builder()
                         .user(user)
                         .filePath(path.toString())
                         .fileName(path.getFileName().toString())
@@ -91,15 +99,17 @@ public class MusicScannerService {
                         .title(title)
                         .year(year)
                         .genre(genre)
-                        .build();
-
-                repository.save(musicFile);
-                saved++;
+                        .build());
             } catch (Exception e) {
                 logger.warn("Skipping file '{}': {}", path.getFileName(), e.getMessage());
                 skipped++;
             }
         }
+
+        if (!batch.isEmpty()) {
+            repository.saveAll(batch);
+        }
+        int saved = batch.size();
 
         logger.info("Scan complete for user '{}': {} saved, {} skipped", user.getUsername(), saved, skipped);
         return saved;
