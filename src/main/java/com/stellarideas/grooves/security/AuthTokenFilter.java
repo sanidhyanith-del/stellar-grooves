@@ -1,5 +1,9 @@
 package com.stellarideas.grooves.security;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,8 +47,10 @@ public class AuthTokenFilter extends OncePerRequestFilter {
             }
         } catch (UsernameNotFoundException e) {
             logger.warn("User from JWT token not found: {}", e.getMessage());
-        } catch (Exception e) {
-            logger.error("Cannot set user authentication for request [{}]: {}", request.getRequestURI(), e.getMessage());
+        } catch (ExpiredJwtException e) {
+            logger.warn("Expired JWT for request [{}]: {}", request.getRequestURI(), e.getMessage());
+        } catch (MalformedJwtException | UnsupportedJwtException | SignatureException | IllegalArgumentException e) {
+            logger.warn("Invalid JWT for request [{}]: {}", request.getRequestURI(), e.getMessage());
         }
 
         filterChain.doFilter(request, response);

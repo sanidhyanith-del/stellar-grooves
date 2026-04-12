@@ -36,14 +36,14 @@ public class AdminController {
         this.playlistRepository = playlistRepository;
     }
 
+    private static final int MAX_PAGE_SIZE = 100;
+
     @GetMapping("/users")
     public ResponseEntity<?> getAllUsers(
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false, defaultValue = "25") int size) {
-        if (page == null) {
-            return ResponseEntity.ok(userRepository.findAll());
-        }
-        Page<User> result = userRepository.findAll(PageRequest.of(page, size));
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size) {
+        int effectiveSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        Page<User> result = userRepository.findAll(PageRequest.of(page, effectiveSize));
         return ResponseEntity.ok(Map.of(
                 "content", result.getContent(),
                 "page", result.getNumber(),

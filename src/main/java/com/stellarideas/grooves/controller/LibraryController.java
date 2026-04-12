@@ -214,12 +214,17 @@ public class LibraryController extends BaseController {
         if (path == null || path.isBlank()) {
             throw new IllegalArgumentException("Directory path must not be empty");
         }
-        if (path.contains("..")) {
-            throw new IllegalArgumentException("Path traversal sequences are not allowed");
-        }
-        Path normalized = Paths.get(path).normalize();
+        Path normalized = Paths.get(path).normalize().toAbsolutePath();
         if (!normalized.isAbsolute()) {
             throw new IllegalArgumentException("Path must be an absolute directory path");
+        }
+        if (normalized.toString().contains("..")) {
+            throw new IllegalArgumentException("Path traversal sequences are not allowed");
+        }
+        // Resolve symlinks to prevent escaping via symlinked directories
+        Path canonical = normalized.toRealPath();
+        if (!canonical.equals(normalized) && !canonical.startsWith(normalized.getParent())) {
+            throw new IllegalArgumentException("Path must not contain symbolic links that escape the target directory");
         }
         if (!Files.exists(normalized) || !Files.isDirectory(normalized)) {
             throw new IllegalArgumentException("Path does not exist or is not a directory");

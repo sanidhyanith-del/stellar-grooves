@@ -1,6 +1,7 @@
 package com.stellarideas.grooves.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
@@ -19,10 +20,15 @@ public class MusicFile {
 
     @JsonIgnore
     private String filePath;
+    @Size(max = 500)
     private String fileName;
+    @Size(max = 200)
     private String artist;
+    @Size(max = 200)
     private String album;
+    @Size(max = 200)
     private String title;
+    @Size(max = 10)
     private String year;
 
     private Genre genre;

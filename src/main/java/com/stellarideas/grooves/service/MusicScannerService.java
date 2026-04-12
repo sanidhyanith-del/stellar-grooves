@@ -17,7 +17,6 @@ import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -27,6 +26,8 @@ public class MusicScannerService {
 
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".mp3", ".m4a", ".flac");
     private static final int DEFAULT_MAX_DEPTH = 20;
+    private static final int HARD_MAX_DEPTH = 50;
+    private static final int BATCH_SIZE = 200;
 
     @Value("${stellar.grooves.scan.maxDepth:" + DEFAULT_MAX_DEPTH + "}")
     private int maxDepth;
@@ -47,69 +48,75 @@ public class MusicScannerService {
      */
     public int scanDirectory(User user, String directoryPath) throws Exception {
         Path root = Paths.get(directoryPath).normalize();
+        int effectiveDepth = Math.min(maxDepth, HARD_MAX_DEPTH);
 
-        List<Path> musicFilePaths;
-        try (Stream<Path> walk = Files.walk(root, maxDepth, FileVisitOption.FOLLOW_LINKS)) {
-            musicFilePaths = walk
+        int saved = 0;
+        int skipped = 0;
+        List<MusicFile> batch = new ArrayList<>(BATCH_SIZE);
+
+        try (Stream<Path> walk = Files.walk(root, effectiveDepth)) {
+            var it = walk
                     .filter(p -> !Files.isSymbolicLink(p))
                     .filter(p -> {
                         String name = p.toString().toLowerCase();
                         return SUPPORTED_EXTENSIONS.stream().anyMatch(name::endsWith);
                     })
-                    .collect(Collectors.toList());
-        }
+                    .iterator();
 
-        logger.info("Found {} audio files in '{}' for user '{}'", musicFilePaths.size(), root, user.getUsername());
+            while (it.hasNext()) {
+                Path path = it.next();
+                try {
+                    if (repository.existsByFilePathAndUser(path.toString(), user)) {
+                        logger.debug("Skipping duplicate path: '{}' already imported for user '{}'", path.getFileName(), user.getUsername());
+                        skipped++;
+                        continue;
+                    }
+                    AudioFile f = AudioFileIO.read(path.toFile());
+                    Tag tag = f.getTag();
 
-        int skipped = 0;
-        List<MusicFile> batch = new ArrayList<>();
+                    String artist = safeGet(tag, FieldKey.ARTIST);
+                    String album  = safeGet(tag, FieldKey.ALBUM);
+                    String title  = safeGet(tag, FieldKey.TITLE);
+                    String year   = safeGet(tag, FieldKey.YEAR);
 
-        for (Path path : musicFilePaths) {
-            try {
-                if (repository.existsByFilePathAndUser(path.toString(), user)) {
-                    logger.debug("Skipping duplicate path: '{}' already imported for user '{}'", path.getFileName(), user.getUsername());
+                    if (!title.isBlank() && !artist.isBlank()
+                            && repository.existsByTitleAndArtistAndUser(title, artist, user)) {
+                        logger.debug("Skipping duplicate metadata: '{}' by '{}' already imported for user '{}'", title, artist, user.getUsername());
+                        skipped++;
+                        continue;
+                    }
+
+                    // Only the first-listed genre is used for classification
+                    Set<Genre> genres = catalogService.identifyGenres(artist);
+                    Genre genre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
+
+                    batch.add(MusicFile.builder()
+                            .user(user)
+                            .filePath(path.toString())
+                            .fileName(path.getFileName().toString())
+                            .artist(artist)
+                            .album(album)
+                            .title(title)
+                            .year(year)
+                            .genre(genre)
+                            .build());
+
+                    if (batch.size() >= BATCH_SIZE) {
+                        repository.saveAll(batch);
+                        saved += batch.size();
+                        batch.clear();
+                    }
+                } catch (Exception e) {
+                    logger.warn("Skipping file '{}': {}", path.getFileName(), e.getMessage());
                     skipped++;
-                    continue;
                 }
-                AudioFile f = AudioFileIO.read(path.toFile());
-                Tag tag = f.getTag();
-
-                String artist = safeGet(tag, FieldKey.ARTIST);
-                String album  = safeGet(tag, FieldKey.ALBUM);
-                String title  = safeGet(tag, FieldKey.TITLE);
-                String year   = safeGet(tag, FieldKey.YEAR);
-
-                if (!title.isBlank() && !artist.isBlank()
-                        && repository.existsByTitleAndArtistAndUser(title, artist, user)) {
-                    logger.debug("Skipping duplicate metadata: '{}' by '{}' already imported for user '{}'", title, artist, user.getUsername());
-                    skipped++;
-                    continue;
-                }
-
-                // Only the first-listed genre is used for classification
-                Set<Genre> genres = catalogService.identifyGenres(artist);
-                Genre genre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
-
-                batch.add(MusicFile.builder()
-                        .user(user)
-                        .filePath(path.toString())
-                        .fileName(path.getFileName().toString())
-                        .artist(artist)
-                        .album(album)
-                        .title(title)
-                        .year(year)
-                        .genre(genre)
-                        .build());
-            } catch (Exception e) {
-                logger.warn("Skipping file '{}': {}", path.getFileName(), e.getMessage());
-                skipped++;
             }
         }
 
         if (!batch.isEmpty()) {
             repository.saveAll(batch);
+            saved += batch.size();
         }
-        int saved = batch.size();
 
         logger.info("Scan complete for user '{}': {} saved, {} skipped", user.getUsername(), saved, skipped);
         return saved;

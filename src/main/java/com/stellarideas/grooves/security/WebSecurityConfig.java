@@ -90,6 +90,14 @@ public class WebSecurityConfig {
                 .contentTypeOptions(cto -> {})
                 .referrerPolicy(rp -> rp.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                 .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                    "default-src 'self'; "
+                    + "script-src 'self' https://cdn.jsdelivr.net; "
+                    + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+                    + "font-src 'self' https://fonts.gstatic.com; "
+                    + "img-src 'self' data:; "
+                    + "connect-src 'self'"
+                ))
             )
             .authorizeHttpRequests(auth ->
                 auth.requestMatchers("/api/auth/**").permitAll()

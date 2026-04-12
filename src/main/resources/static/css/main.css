@@ -65,7 +65,7 @@ body {
         radial-gradient(ellipse at 70% 80%, rgba(255, 110, 180, 0.02) 0%, transparent 60%);
     color: var(--text-primary);
     font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.6;
     min-height: 100vh;
 }

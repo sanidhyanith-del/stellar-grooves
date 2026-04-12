@@ -10,6 +10,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
+
 import java.security.Key;
 import java.util.Date;
 
@@ -17,12 +19,29 @@ import java.util.Date;
 public class JwtUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
+    private static final String DEFAULT_SECRET = "c3RlbGxhci1ncm9vdmVzLXNlY3JldC1rZXktZm9yLWp3dC1wbGVhc2UtY2hhbmdlLWluLXByb2R1Y3Rpb24tZW52";
 
     @Value("${stellar.grooves.jwtSecret}")
     private String jwtSecret;
 
     @Value("${stellar.grooves.jwtExpirationMs:86400000}")
     private int jwtExpirationMs;
+
+    @Value("${stellar.grooves.requireSecureJwt:false}")
+    private boolean requireSecureJwt;
+
+    @PostConstruct
+    void validateJwtSecret() {
+        if (DEFAULT_SECRET.equals(jwtSecret)) {
+            if (requireSecureJwt) {
+                throw new IllegalStateException(
+                        "JWT secret must be changed from the default value. "
+                        + "Set the JWT_SECRET environment variable or stellar.grooves.jwtSecret property.");
+            }
+            logger.warn("*** Using default JWT secret — this is NOT safe for production. "
+                    + "Set JWT_SECRET env var or stellar.grooves.requireSecureJwt=true to enforce. ***");
+        }
+    }
 
     private Key key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));

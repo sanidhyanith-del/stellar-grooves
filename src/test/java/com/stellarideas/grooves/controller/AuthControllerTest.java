@@ -69,7 +69,7 @@ class AuthControllerTest {
         assertEquals(400, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
-        assertEquals("Username is already taken", body.get("error"));
+        assertEquals("Username or email is already registered", body.get("error"));
     }
 
     @Test
@@ -82,7 +82,7 @@ class AuthControllerTest {
         assertEquals(400, response.getStatusCode().value());
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) response.getBody();
-        assertEquals("Email is already in use", body.get("error"));
+        assertEquals("Username or email is already registered", body.get("error"));
     }
 
     @Test
