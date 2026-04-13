@@ -1,7 +1,7 @@
 package com.stellarideas.grooves.model;
 
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -12,13 +12,14 @@ import java.time.Instant;
  * use the corrected genre instead of the static catalog default.
  */
 @Document(collection = "genre_corrections")
-@CompoundIndex(name = "artist_unique", def = "{'artistLower': 1}", unique = true)
 public class GenreCorrection {
 
     @Id
     private String id;
 
     private String artist;
+
+    @Indexed(unique = true)
     private String artistLower;
     private Genre genre;
     private String correctedByUserId;

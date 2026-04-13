@@ -1,6 +1,7 @@
 package com.stellarideas.grooves.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,5 +45,14 @@ public class ScanRateLimiter {
         long elapsed = System.currentTimeMillis() - last;
         long remaining = cooldownSeconds - (elapsed / 1000);
         return Math.max(0, remaining);
+    }
+
+    /**
+     * Periodically evict stale entries older than 1 hour to prevent unbounded memory growth.
+     */
+    @Scheduled(fixedRate = 3600000) // every hour
+    void evictStaleEntries() {
+        long cutoff = System.currentTimeMillis() - 3600_000;
+        lastScanTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
     }
 }

@@ -80,4 +80,51 @@ class JwtUtilsTest {
         String token = expiredUtils.generateJwtToken(auth);
         assertFalse(jwtUtils.validateJwtToken(token));
     }
+
+    @Test
+    void blacklistedTokenReturnsFalse() {
+        Authentication auth = buildAuthentication("testuser");
+        String token = jwtUtils.generateJwtToken(auth);
+
+        // Make the blacklist check return true for any JTI
+        when(blacklistedTokenRepository.existsByJti(anyString())).thenReturn(true);
+
+        assertFalse(jwtUtils.validateJwtToken(token));
+    }
+
+    @Test
+    void getJtiFromTokenReturnsJti() {
+        Authentication auth = buildAuthentication("testuser");
+        String token = jwtUtils.generateJwtToken(auth);
+
+        String jti = jwtUtils.getJtiFromToken(token);
+        assertNotNull(jti);
+        assertFalse(jti.isBlank());
+    }
+
+    @Test
+    void getJtiFromInvalidTokenReturnsNull() {
+        assertNull(jwtUtils.getJtiFromToken("not.valid.token"));
+    }
+
+    @Test
+    void getExpirationFromTokenReturnsInstant() {
+        Authentication auth = buildAuthentication("testuser");
+        String token = jwtUtils.generateJwtToken(auth);
+
+        java.time.Instant expiration = jwtUtils.getExpirationFromToken(token);
+        assertNotNull(expiration);
+        assertTrue(expiration.isAfter(java.time.Instant.now()));
+    }
+
+    @Test
+    void getExpirationFromInvalidTokenReturnsNull() {
+        assertNull(jwtUtils.getExpirationFromToken("not.valid.token"));
+    }
+
+    @Test
+    void getRefreshTokenExpirationMsReturnsConfiguredValue() {
+        ReflectionTestUtils.setField(jwtUtils, "refreshTokenExpirationMs", 604800000L);
+        assertEquals(604800000L, jwtUtils.getRefreshTokenExpirationMs());
+    }
 }

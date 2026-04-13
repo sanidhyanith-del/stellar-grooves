@@ -55,54 +55,54 @@ class CoverArtExtractionTest {
 
     /**
      * Use reflection to call the private extractCoverArt method directly
-     * for isolated unit testing of edge cases.
+     * for isolated unit testing of edge cases. Returns the byte size (0 = no art stored).
      */
-    private boolean callExtractCoverArt(org.jaudiotagger.tag.Tag tag,
-                                         String userId, String artist, String album) throws Exception {
+    private long callExtractCoverArt(org.jaudiotagger.tag.Tag tag,
+                                      String userId, String artist, String album) throws Exception {
         Method method = MusicScannerService.class.getDeclaredMethod(
                 "extractCoverArt", org.jaudiotagger.tag.Tag.class, String.class, String.class, String.class);
         method.setAccessible(true);
-        return (boolean) method.invoke(scannerService, tag, userId, artist, album);
+        return (long) method.invoke(scannerService, tag, userId, artist, album);
     }
 
     @Test
-    void extractCoverArtReturnsFalseForNullTag() throws Exception {
-        boolean result = callExtractCoverArt(null, "user1", "Artist", "Album");
-        assertFalse(result);
+    void extractCoverArtReturnsZeroForNullTag() throws Exception {
+        long result = callExtractCoverArt(null, "user1", "Artist", "Album");
+        assertEquals(0, result);
         verify(coverArtRepository, never()).save(any());
     }
 
     @Test
-    void extractCoverArtReturnsFalseForTagWithNoArtwork() throws Exception {
+    void extractCoverArtReturnsZeroForTagWithNoArtwork() throws Exception {
         org.jaudiotagger.tag.Tag tag = mock(org.jaudiotagger.tag.Tag.class);
         when(tag.getFirstArtwork()).thenReturn(null);
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertFalse(result);
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(0, result);
         verify(coverArtRepository, never()).save(any());
     }
 
     @Test
-    void extractCoverArtReturnsFalseForEmptyBinaryData() throws Exception {
+    void extractCoverArtReturnsZeroForEmptyBinaryData() throws Exception {
         org.jaudiotagger.tag.Tag tag = mock(org.jaudiotagger.tag.Tag.class);
         org.jaudiotagger.tag.images.Artwork artwork = mock(org.jaudiotagger.tag.images.Artwork.class);
         when(tag.getFirstArtwork()).thenReturn(artwork);
         when(artwork.getBinaryData()).thenReturn(new byte[0]);
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertFalse(result);
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(0, result);
         verify(coverArtRepository, never()).save(any());
     }
 
     @Test
-    void extractCoverArtReturnsFalseForNullBinaryData() throws Exception {
+    void extractCoverArtReturnsZeroForNullBinaryData() throws Exception {
         org.jaudiotagger.tag.Tag tag = mock(org.jaudiotagger.tag.Tag.class);
         org.jaudiotagger.tag.images.Artwork artwork = mock(org.jaudiotagger.tag.images.Artwork.class);
         when(tag.getFirstArtwork()).thenReturn(artwork);
         when(artwork.getBinaryData()).thenReturn(null);
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertFalse(result);
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(0, result);
         verify(coverArtRepository, never()).save(any());
     }
 
@@ -116,8 +116,8 @@ class CoverArtExtractionTest {
         byte[] oversized = new byte[11 * 1024 * 1024];
         when(artwork.getBinaryData()).thenReturn(oversized);
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertFalse(result, "Oversized cover art should be rejected");
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(0, result, "Oversized cover art should be rejected");
         verify(coverArtRepository, never()).save(any());
     }
 
@@ -132,8 +132,8 @@ class CoverArtExtractionTest {
         when(coverArtRepository.findByUserIdAndArtistAndAlbum("user1", "Artist", "Album"))
                 .thenReturn(Optional.of(new CoverArt()));
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertTrue(result, "Should return true when art already exists");
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(3, result, "Should return data size when art already exists");
         verify(coverArtRepository, never()).save(any());
     }
 
@@ -148,8 +148,8 @@ class CoverArtExtractionTest {
         when(coverArtRepository.findByUserIdAndArtistAndAlbum("user1", "Artist", "Album"))
                 .thenReturn(Optional.empty());
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertTrue(result);
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(3, result);
         verify(coverArtRepository).save(argThat(art -> {
             CoverArt ca = (CoverArt) art;
             return "user1".equals(ca.getUserId())
@@ -170,8 +170,8 @@ class CoverArtExtractionTest {
         when(coverArtRepository.findByUserIdAndArtistAndAlbum("user1", "Artist", "Album"))
                 .thenReturn(Optional.empty());
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertTrue(result);
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(3, result);
         verify(coverArtRepository).save(argThat(art ->
                 "image/jpeg".equals(((CoverArt) art).getMimeType())));
     }
@@ -186,7 +186,7 @@ class CoverArtExtractionTest {
                 .thenReturn(Optional.empty());
         when(coverArtRepository.save(any())).thenThrow(new RuntimeException("DB write failed"));
 
-        boolean result = callExtractCoverArt(tag, "user1", "Artist", "Album");
-        assertFalse(result, "Should return false when save throws");
+        long result = callExtractCoverArt(tag, "user1", "Artist", "Album");
+        assertEquals(0, result, "Should return 0 when save throws");
     }
 }

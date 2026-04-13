@@ -98,14 +98,17 @@ public class WebSecurityConfig {
                     .ignoringRequestMatchers("/api/v1/auth/**", "/api/v1/shared/**"); // stateless JWT auth endpoints and public shared endpoints don't need CSRF
             })
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-            .headers(headers -> headers
-                .frameOptions(frame -> frame.deny())
-                .contentTypeOptions(cto -> {})
-                .referrerPolicy(rp -> rp.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000))
+            .headers(headers -> {
+                headers
+                    .frameOptions(frame -> frame.deny())
+                    .contentTypeOptions(cto -> {})
+                    .referrerPolicy(rp -> rp.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000));
+                headers.permissionsPolicy(pp -> pp.policy(
+                    "geolocation=(), microphone=(), camera=(), payment=(), usb=()"));
                 // Note: style-src 'unsafe-inline' is required by Bootstrap's dynamic inline styles (modals, tooltips).
                 // All application inline styles have been moved to external CSS.
-                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                headers.contentSecurityPolicy(csp -> csp.policyDirectives(
                     "default-src 'self'; "
                     + "script-src 'self' https://cdn.jsdelivr.net; "
                     + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
@@ -115,8 +118,8 @@ public class WebSecurityConfig {
                     + "object-src 'none'; "
                     + "base-uri 'self'; "
                     + "form-action 'self'"
-                ))
-            )
+                ));
+            })
             .authorizeHttpRequests(auth -> {
                 auth.requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/api/v1/shared/**").permitAll()

@@ -1,6 +1,7 @@
 package com.stellarideas.grooves.service;
 
 import com.stellarideas.grooves.model.User;
+import com.stellarideas.grooves.repository.RefreshTokenRepository;
 import com.stellarideas.grooves.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,9 +29,11 @@ public class LoginAttemptService {
     private long lockoutDurationMinutes;
 
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    public LoginAttemptService(UserRepository userRepository) {
+    public LoginAttemptService(UserRepository userRepository, RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     /**
@@ -49,7 +52,8 @@ public class LoginAttemptService {
             Instant expiry = Instant.now().plus(lockoutDurationMinutes, ChronoUnit.MINUTES);
             user.setAccountLocked(true);
             user.setLockoutExpiry(expiry);
-            logger.warn("Account '{}' locked after {} failed attempts. Lockout expires at {}",
+            refreshTokenRepository.deleteByUserId(user.getId());
+            logger.warn("Account '{}' locked after {} failed attempts. Lockout expires at {}. Refresh tokens revoked.",
                     username, attempts, expiry);
         }
 

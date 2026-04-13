@@ -34,14 +34,14 @@ Built with Spring Boot, MongoDB, and vanilla JavaScript.
 - **Virtual scrolling** — DOM virtualization for libraries with 10,000+ tracks; only visible rows are rendered
 
 ### Administration & Security
-- **Multi-user** — per-user libraries with session-based (form login) and JWT authentication; 15-minute access tokens with 7-day refresh tokens; 15-minute idle session timeout
+- **Multi-user** — per-user libraries with session-based (form login) and JWT authentication; 15-minute access tokens with 7-day refresh tokens; 30-minute idle session timeout (configurable via `SESSION_TIMEOUT`)
 - **Password reset** — token-based password reset flow with 15-minute one-time-use tokens; anti-enumeration response (always returns 200)
-- **Account lockout** — accounts lock after 5 consecutive failed login attempts; auto-unlocks after 15 minutes; configurable thresholds
+- **Account lockout** — accounts lock after 5 consecutive failed login attempts; auto-unlocks after 15 minutes; configurable thresholds; all refresh tokens are revoked on lockout
 - **Admin dashboard** — stats overview (users, files, playlists), paginated user management table with per-user file counts, delete user with cascade
 - **Distributed rate limiting** — pluggable `RateLimitStore` interface with in-memory (default) and Redis-backed implementations; auto-detects Redis on the classpath for multi-instance deployments
 - **Cover art storage quotas** — configurable per-user cover art quota (default 500 MB); quota checked during scan, extraction skipped when exceeded
 - **Request body size limits** — Tomcat max post size, max header size, and multipart limits configured to prevent oversized payloads
-- **Security** — CSRF protection (HttpOnly cookies with meta-tag delivery), rate limiting on auth and scan endpoints (with proxy-aware IP detection and `Retry-After` header), configurable CORS origins (explicit origins, not patterns), path traversal prevention on scan and stream endpoints, symlink detection, server-side input validation with typed DTOs, Content Security Policy headers (no `unsafe-inline` for scripts), password complexity requirements, JWT with `jti`/`iss` claims, token blacklisting on logout
+- **Security** — CSRF protection (HttpOnly cookies with meta-tag delivery), rate limiting on auth and scan endpoints (with proxy-aware IP detection and `Retry-After` header), configurable CORS origins (explicit origins, not patterns), path traversal prevention on scan and stream endpoints, symlink detection, server-side input validation with typed DTOs, Content Security Policy headers (no `unsafe-inline` for scripts), Permissions-Policy header (disables geolocation, microphone, camera, payment, USB), password complexity requirements (enforced on both signup and password reset), JWT with `jti`/`iss` claims, token blacklisting on logout
 - **RFC 7807 error responses** — all API error responses follow the Problem Details standard (`type`, `title`, `status`, `detail`) with backwards-compatible `error` property
 - **Audit logging** — dedicated `AUDIT` logger routed to a separate `logs/audit.log` file with 90-day retention; structured MDC context tracks all security-sensitive operations: logins, signups, password resets, file deletions, genre changes, playlist modifications, and admin actions
 - **API documentation** — interactive Swagger UI at `/swagger-ui.html` with OpenAPI 3.0 spec at `/api-docs`; JWT bearer auth support; disabled in production profile
@@ -187,7 +187,7 @@ All settings live in `src/main/resources/application.properties` and can be over
 | `stellar.grooves.rateLimit.windowMs` | — | `60000` (1 min) | Rate limit window in milliseconds |
 | `stellar.grooves.rateLimit.trustProxy` | `RATE_LIMIT_TRUST_PROXY` | `false` | Trust `X-Forwarded-For` header for client IP detection |
 | `stellar.grooves.rateLimit.trustedProxies` | `RATE_LIMIT_TRUSTED_PROXIES` | *(empty)* | Comma-separated proxy IPs allowed to set `X-Forwarded-For` (only used when `trustProxy=true`) |
-| `server.servlet.session.timeout` | — | `15m` | Idle session timeout |
+| `server.servlet.session.timeout` | `SESSION_TIMEOUT` | `30m` | Idle session timeout |
 
 ### Scanner & Storage
 
@@ -333,11 +333,11 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 | Method | Endpoint | Body | Description |
 |--------|----------|------|-------------|
 | `POST` | `/api/v1/auth/signup` | `{ "username", "email", "password" }` | Register a new user (password: min 8 chars, requires upper + lower + digit) |
-| `POST` | `/api/v1/auth/signin` | `{ "username", "password" }` | Log in; returns `{ token, refreshToken, username }`; returns 403 if account is locked |
+| `POST` | `/api/v1/auth/signin` | `{ "username", "password" }` | Log in; returns `{ token, refreshToken, username }`; returns 401 for invalid credentials or locked accounts (uniform response to prevent enumeration) |
 | `POST` | `/api/v1/auth/refresh` | `{ "refreshToken": "..." }` | Exchange a valid refresh token for a new access token + refresh token |
 | `POST` | `/api/v1/auth/logout` | — | Blacklist the current JWT and delete refresh tokens (requires `Authorization: Bearer` header) |
 | `POST` | `/api/v1/auth/password-reset/request` | `{ "email": "..." }` | Request a password reset token (always returns 200 to prevent enumeration; token logged at INFO) |
-| `POST` | `/api/v1/auth/password-reset/execute` | `{ "token": "...", "newPassword": "..." }` | Reset password using a valid one-time token (15-min expiry) |
+| `POST` | `/api/v1/auth/password-reset/execute` | `{ "token": "...", "newPassword": "..." }` | Reset password using a valid one-time token (15-min expiry); same complexity requirements as signup |
 
 ### Library
 
@@ -351,7 +351,7 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 | `GET` | `/api/v1/library/files/{id}/cover` | — | Get album cover art (30-day cache) |
 | `PATCH` | `/api/v1/library/files/{id}/genre` | `{ "genre": "CLASSIC_ROCK" }` | Update a track's genre; records a correction for the artist so future scans use this genre |
 | `PATCH` | `/api/v1/library/files/{id}/rating` | `{ "rating": 4 }` | Set track rating (0-5, 0 = unrated) |
-| `POST` | `/api/v1/library/files/bulk-delete` | `{ "fileIds": ["id1", "id2"] }` | Soft-delete tracks (max 500); moves to trash |
+| `POST` | `/api/v1/library/files/bulk-delete` | `{ "fileIds": ["id1", "id2"] }` | Soft-delete tracks (max 100); moves to trash |
 | `GET` | `/api/v1/library/duplicates` | — | Get duplicate track groups (paginated); `?page=0&size=50` |
 | `DELETE` | `/api/v1/library/files/{id}` | — | Soft-delete a single track (moves to trash) |
 | `DELETE` | `/api/v1/library/files` | — | Clear the current user's entire library |
@@ -442,7 +442,7 @@ src/main/java/com/stellarideas/grooves/
 │   └── Role.java                        # Role enum
 ├── dto/
 │   ├── AddTrackRequest.java             # Add track to playlist
-│   ├── BulkDeleteRequest.java           # Bulk delete tracks (validated, max 500)
+│   ├── BulkDeleteRequest.java           # Bulk delete tracks (validated, max 100)
 │   ├── CreatePlaylistRequest.java       # Create playlist (validated)
 │   ├── LoginRequest.java                # Login validation
 │   ├── MusicFileDTO.java                # Track response (with rating + cover art flag)
@@ -513,7 +513,7 @@ docker-compose.yml                       # App + MongoDB (optional Redis)
 .dockerignore                            # Build context exclusions
 ```
 
-**228 unit tests** across all layers. JaCoCo coverage reports generated at `target/site/jacoco/index.html` with a **60% minimum line coverage** threshold enforced at the `verify` phase.
+**235 unit tests** across all layers. JaCoCo coverage reports generated at `target/site/jacoco/index.html` with a **60% minimum line coverage** threshold enforced at the `verify` phase.
 
 ---
 
@@ -532,7 +532,7 @@ docker-compose.yml                       # App + MongoDB (optional Redis)
 | Containerization | Docker (multi-stage) + Docker Compose |
 | Build | Maven 3 |
 | Runtime | Java 17 |
-| Testing | JUnit 5 + Mockito + JaCoCo (60% min) + Testcontainers (228 tests) |
+| Testing | JUnit 5 + Mockito + JaCoCo (60% min) + Testcontainers (235 tests) |
 | Code quality | Spotless (Google Java Format) + OWASP Dependency Check (build lifecycle) |
 
 ---

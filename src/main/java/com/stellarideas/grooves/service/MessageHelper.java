@@ -1,9 +1,8 @@
 package com.stellarideas.grooves.service;
 
 import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
-
-import java.util.Locale;
 
 @Component
 public class MessageHelper {
@@ -15,6 +14,6 @@ public class MessageHelper {
     }
 
     public String msg(String code, Object... args) {
-        return messageSource.getMessage(code, args, Locale.getDefault());
+        return messageSource.getMessage(code, args, LocaleContextHolder.getLocale());
     }
 }
