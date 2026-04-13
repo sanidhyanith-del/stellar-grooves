@@ -1,6 +1,11 @@
 package com.stellarideas.grooves.dto;
 
+import com.stellarideas.grooves.model.Genre;
 import com.stellarideas.grooves.model.MusicFile;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class MusicFileDTO {
 
@@ -11,8 +16,10 @@ public class MusicFileDTO {
     private String title;
     private String year;
     private String genre;
+    private List<String> additionalGenres;
     private int rating;
     private boolean hasCoverArt;
+    private Instant createdAt;
 
     public MusicFileDTO() {}
 
@@ -25,8 +32,12 @@ public class MusicFileDTO {
         dto.title = file.getTitle();
         dto.year = file.getYear();
         dto.genre = file.getGenre() != null ? file.getGenre().name() : null;
+        dto.additionalGenres = file.getAdditionalGenres() != null
+                ? file.getAdditionalGenres().stream().map(Genre::name).collect(Collectors.toList())
+                : null;
         dto.rating = file.getRating();
         dto.hasCoverArt = file.isHasCoverArt();
+        dto.createdAt = file.getCreatedAt();
         return dto;
     }
 
@@ -56,4 +67,10 @@ public class MusicFileDTO {
 
     public boolean isHasCoverArt() { return hasCoverArt; }
     public void setHasCoverArt(boolean hasCoverArt) { this.hasCoverArt = hasCoverArt; }
+
+    public List<String> getAdditionalGenres() { return additionalGenres; }
+    public void setAdditionalGenres(List<String> additionalGenres) { this.additionalGenres = additionalGenres; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

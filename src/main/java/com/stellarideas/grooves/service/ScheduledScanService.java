@@ -13,11 +13,15 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class ScheduledScanService {
 
     private static final Logger logger = LoggerFactory.getLogger(ScheduledScanService.class);
+
+    private final Set<String> activeScans = ConcurrentHashMap.newKeySet();
 
     private final UserRepository userRepository;
     private final MusicScannerService musicScannerService;
@@ -47,13 +51,22 @@ public class ScheduledScanService {
 
                 LocalDateTime nextExecution = cron.next(lastScanTime);
                 if (nextExecution != null && !nextExecution.isAfter(now)) {
-                    logger.info("Running scheduled scan for user '{}' on path '{}'",
-                            user.getUsername(), user.getScanPath());
-                    ScanResult result = musicScannerService.scanDirectory(user, user.getScanPath());
-                    user.setLastScheduledScan(Instant.now());
-                    userRepository.save(user);
-                    logger.info("Scheduled scan complete for user '{}': {} saved, {} skipped, {} errors",
-                            user.getUsername(), result.getSaved(), result.getSkipped(), result.getErrors());
+                    if (!activeScans.add(user.getId())) {
+                        logger.info("Skipping scheduled scan for user '{}' — scan already in progress",
+                                user.getUsername());
+                        continue;
+                    }
+                    try {
+                        logger.info("Running scheduled scan for user '{}' on path '{}'",
+                                user.getUsername(), user.getScanPath());
+                        ScanResult result = musicScannerService.scanDirectory(user, user.getScanPath());
+                        user.setLastScheduledScan(Instant.now());
+                        userRepository.save(user);
+                        logger.info("Scheduled scan complete for user '{}': {} saved, {} skipped, {} errors",
+                                user.getUsername(), result.getSaved(), result.getSkipped(), result.getErrors());
+                    } finally {
+                        activeScans.remove(user.getId());
+                    }
                 }
             } catch (Exception e) {
                 logger.error("Scheduled scan failed for user '{}': {}", user.getUsername(), e.getMessage());

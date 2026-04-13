@@ -163,6 +163,8 @@ class MusicScannerServiceTest {
         ScanResult result = scannerService.scanDirectory(testUser, tempDir.toString());
 
         assertEquals(60, result.getErrors());
-        assertEquals(50, result.getErrorDetails().size(), "Error details should be capped at 50");
+        assertEquals(51, result.getErrorDetails().size(), "Error details should be capped at 50 plus truncation message");
+        assertTrue(result.getErrorDetails().get(50).contains("truncated"),
+                "Last entry should indicate truncation");
     }
 }

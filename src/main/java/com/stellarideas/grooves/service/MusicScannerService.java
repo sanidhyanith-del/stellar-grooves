@@ -33,6 +33,7 @@ public class MusicScannerService {
     private static final int DEFAULT_MAX_DEPTH = 20;
     private static final int HARD_MAX_DEPTH = 50;
     private static final int BATCH_SIZE = 200;
+    private static final int MAX_COVER_ART_BYTES = 10 * 1024 * 1024; // 10 MB
 
     @Value("${stellar.grooves.scan.maxDepth:" + DEFAULT_MAX_DEPTH + "}")
     private int maxDepth;
@@ -108,6 +109,9 @@ public class MusicScannerService {
 
                     Set<Genre> genres = catalogService.identifyGenres(artist);
                     Genre genre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
+                    List<Genre> additionalGenres = genres.size() > 1
+                            ? genres.stream().filter(g -> g != genre).collect(Collectors.toList())
+                            : null;
 
                     // Extract cover art if available
                     boolean hasCover = false;
@@ -130,6 +134,7 @@ public class MusicScannerService {
                             .title(title)
                             .year(year)
                             .genre(genre)
+                            .additionalGenres(additionalGenres)
                             .hasCoverArt(hasCover)
                             .build();
 
@@ -166,6 +171,11 @@ public class MusicScannerService {
             if (tag == null) return false;
             Artwork artwork = tag.getFirstArtwork();
             if (artwork == null || artwork.getBinaryData() == null || artwork.getBinaryData().length == 0) {
+                return false;
+            }
+            if (artwork.getBinaryData().length > MAX_COVER_ART_BYTES) {
+                logger.warn("Cover art for '{} - {}' exceeds max size ({} bytes), skipping",
+                        artist, album, artwork.getBinaryData().length);
                 return false;
             }
             // Check if we already have art for this album

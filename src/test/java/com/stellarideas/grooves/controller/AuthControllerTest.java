@@ -56,8 +56,9 @@ class AuthControllerTest {
 
         com.stellarideas.grooves.repository.RefreshTokenRepository refreshTokenRepository = mock(com.stellarideas.grooves.repository.RefreshTokenRepository.class);
         com.stellarideas.grooves.repository.PasswordResetTokenRepository passwordResetTokenRepository = mock(com.stellarideas.grooves.repository.PasswordResetTokenRepository.class);
+        com.stellarideas.grooves.service.PasswordResetMailService passwordResetMailService = mock(com.stellarideas.grooves.service.PasswordResetMailService.class);
         controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils,
-                msgHelper, loginAttemptService, auditService, blacklistedTokenRepository, refreshTokenRepository, passwordResetTokenRepository);
+                msgHelper, loginAttemptService, auditService, blacklistedTokenRepository, refreshTokenRepository, passwordResetTokenRepository, passwordResetMailService);
     }
 
     private SignupRequest signupRequest(String username, String email, String password) {

@@ -107,20 +107,28 @@ class AdminControllerTest {
     @Test
     void getUserByIdReturnsUser() {
         User user = User.builder().id("u1").username("user1").email("u1@test.com")
-                .roles(Set.of(Role.ROLE_USER)).build();
+                .musicDirectory("/music").roles(Set.of(Role.ROLE_USER)).build();
         when(userRepository.findById("u1")).thenReturn(Optional.of(user));
+        when(musicFileRepository.countByUserId("u1")).thenReturn(5L);
 
-        ResponseEntity<User> response = controller.getUserById("u1");
+        ResponseEntity<?> response = controller.getUserById("u1");
 
         assertEquals(200, response.getStatusCode().value());
-        assertEquals("user1", response.getBody().getUsername());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertEquals("u1", body.get("id"));
+        assertEquals("user1", body.get("username"));
+        assertEquals("u1@test.com", body.get("email"));
+        assertEquals("/music", body.get("musicDirectory"));
+        assertEquals(5L, body.get("fileCount"));
+        assertNull(body.get("password"));
     }
 
     @Test
     void getUserByIdReturns404ForMissingUser() {
         when(userRepository.findById("missing")).thenReturn(Optional.empty());
 
-        ResponseEntity<User> response = controller.getUserById("missing");
+        ResponseEntity<?> response = controller.getUserById("missing");
 
         assertEquals(404, response.getStatusCode().value());
     }

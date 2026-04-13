@@ -13,10 +13,14 @@ public class ScanResult {
     public void incrementSaved()  { saved++; }
     public void incrementSkipped() { skipped++; }
 
+    private static final int MAX_ERROR_DETAILS = 50;
+
     public void addError(String fileName, String message) {
         errors++;
-        if (errorDetails.size() < 50) {
+        if (errorDetails.size() < MAX_ERROR_DETAILS) {
             errorDetails.add(fileName + ": " + message);
+        } else if (errorDetails.size() == MAX_ERROR_DETAILS) {
+            errorDetails.add("... additional errors truncated (showing first " + MAX_ERROR_DETAILS + ")");
         }
     }
 
