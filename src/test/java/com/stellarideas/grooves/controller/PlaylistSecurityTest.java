@@ -7,6 +7,7 @@ import com.stellarideas.grooves.model.Role;
 import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
+import com.stellarideas.grooves.service.AuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.ResourceBundleMessageSource;
@@ -40,7 +41,8 @@ class PlaylistSecurityTest {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("messages");
 
-        controller = new PlaylistController(playlistRepository, musicFileRepository, messageSource);
+        AuditService auditService = mock(AuditService.class);
+        controller = new PlaylistController(playlistRepository, musicFileRepository, messageSource, auditService);
 
         userA = User.builder().username("alice").email("alice@test.com").password("enc").build();
         userA.setId("userA");

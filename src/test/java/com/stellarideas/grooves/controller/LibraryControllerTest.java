@@ -6,6 +6,8 @@ import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.CoverArtRepository;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
+import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.MusicCatalogService;
 import com.stellarideas.grooves.service.MusicScannerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +44,9 @@ class LibraryControllerTest {
         messageSource.setBasename("messages");
 
         CoverArtRepository coverArtRepository = mock(CoverArtRepository.class);
-        controller = new LibraryController(scannerService, musicFileRepository, playlistRepository, coverArtRepository, messageSource);
+        AuditService auditService = mock(AuditService.class);
+        MusicCatalogService catalogService = mock(MusicCatalogService.class);
+        controller = new LibraryController(scannerService, musicFileRepository, playlistRepository, coverArtRepository, messageSource, auditService, catalogService);
 
         testUser = new User();
         testUser.setId("user1");

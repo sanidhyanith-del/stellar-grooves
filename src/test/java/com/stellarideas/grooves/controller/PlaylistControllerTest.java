@@ -10,6 +10,7 @@ import com.stellarideas.grooves.model.Role;
 import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
+import com.stellarideas.grooves.service.AuditService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.ResourceBundleMessageSource;
@@ -38,7 +39,8 @@ class PlaylistControllerTest {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("messages");
 
-        controller = new PlaylistController(playlistRepository, musicFileRepository, messageSource);
+        AuditService auditService = mock(AuditService.class);
+        controller = new PlaylistController(playlistRepository, musicFileRepository, messageSource, auditService);
 
         testUser = User.builder().username("testuser").email("t@t.com").password("enc").build();
         testUser.setId("user1");

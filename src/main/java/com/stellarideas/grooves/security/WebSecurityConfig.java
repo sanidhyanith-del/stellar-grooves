@@ -94,7 +94,7 @@ public class WebSecurityConfig {
                 // All application inline styles have been moved to external CSS.
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
                     "default-src 'self'; "
-                    + "script-src 'self' https://cdn.jsdelivr.net; "
+                    + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                     + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
                     + "font-src 'self' https://fonts.gstatic.com; "
                     + "img-src 'self' data:; "
@@ -107,6 +107,7 @@ public class WebSecurityConfig {
             .authorizeHttpRequests(auth ->
                 auth.requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/login", "/signup", "/css/**", "/js/**", "/images/**", "/favicon.ico", "/actuator/health").permitAll()
+                    .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
                     .anyRequest().authenticated()
             )
             .formLogin(form -> form

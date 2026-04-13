@@ -175,7 +175,14 @@
 
                     <!-- Albums view -->
                     <div id="viewAlbums" class="d-none" role="region" aria-label="Albums">
-                        <div class="table-responsive">
+                        <div class="d-flex justify-content-end px-3 pt-2 pb-1">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Albums view mode">
+                                <button type="button" class="btn btn-outline-secondary active" id="albumViewGrid" title="Grid view">&#x2637;</button>
+                                <button type="button" class="btn btn-outline-secondary" id="albumViewList" title="List view">&#x2630;</button>
+                            </div>
+                        </div>
+                        <div id="albumsGrid" class="album-grid p-3"></div>
+                        <div class="table-responsive d-none" id="albumsTableWrap">
                             <table class="table" aria-label="Albums list">
                                 <thead><tr>
                                     <th scope="col">Album</th>
@@ -215,9 +222,23 @@
 
                     <!-- Playlist view -->
                     <div id="viewPlaylist" class="d-none" role="region" aria-label="Playlist tracks">
-                        <div class="d-flex justify-content-end gap-2 px-3 pt-2">
-                            <button class="btn btn-sm btn-outline-secondary" id="exportJsonBtn" aria-label="Export as JSON">Export JSON</button>
-                            <button class="btn btn-sm btn-outline-secondary" id="exportM3uBtn" aria-label="Export as M3U">Export M3U</button>
+                        <div class="d-flex justify-content-between align-items-center gap-2 px-3 pt-2 flex-wrap">
+                            <div class="d-flex gap-2 align-items-center">
+                                <label class="form-label mb-0 small" style="color: var(--text-muted); white-space: nowrap;">Sort by:</label>
+                                <select id="playlistSort" class="form-select form-select-sm" style="max-width: 160px;" aria-label="Sort playlist">
+                                    <option value="custom">Custom Order</option>
+                                    <option value="title">Title</option>
+                                    <option value="artist">Artist</option>
+                                    <option value="album">Album</option>
+                                    <option value="genre">Genre</option>
+                                    <option value="rating">Rating (High to Low)</option>
+                                    <option value="year">Year (Newest)</option>
+                                </select>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" id="exportJsonBtn" aria-label="Export as JSON">Export JSON</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="exportM3uBtn" aria-label="Export as M3U">Export M3U</button>
+                            </div>
                         </div>
                         <div class="table-responsive">
                             <table class="table" aria-label="Playlist tracks">
@@ -227,6 +248,7 @@
                                     <th scope="col">Artist</th>
                                     <th scope="col" class="hide-xs">Album</th>
                                     <th scope="col">Genre</th>
+                                    <th scope="col" class="hide-xs">Rating</th>
                                     <th scope="col" class="hide-xs">Decade</th>
                                     <th scope="col" class="hide-xs col-actions"><span class="visually-hidden">Actions</span></th>
                                 </tr></thead>

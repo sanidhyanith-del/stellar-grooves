@@ -5,6 +5,8 @@ import com.stellarideas.grooves.repository.CoverArtRepository;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.repository.UserRepository;
+import com.stellarideas.grooves.security.CurrentUser;
+import com.stellarideas.grooves.service.AuditService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -32,15 +34,17 @@ public class AdminController {
     private final PlaylistRepository playlistRepository;
     private final CoverArtRepository coverArtRepository;
     private final MessageSource messageSource;
+    private final AuditService auditService;
 
     public AdminController(UserRepository userRepository, MusicFileRepository musicFileRepository,
                            PlaylistRepository playlistRepository, CoverArtRepository coverArtRepository,
-                           MessageSource messageSource) {
+                           MessageSource messageSource, AuditService auditService) {
         this.userRepository = userRepository;
         this.musicFileRepository = musicFileRepository;
         this.playlistRepository = playlistRepository;
         this.coverArtRepository = coverArtRepository;
         this.messageSource = messageSource;
+        this.auditService = auditService;
     }
 
     private String msg(String code, Object... args) {
@@ -58,8 +62,10 @@ public class AdminController {
 
     @GetMapping("/users")
     public ResponseEntity<?> getAllUsers(
+            @CurrentUser User admin,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int size) {
+        auditService.log(admin.getUsername(), AuditService.Action.ADMIN_VIEW_USERS);
         int effectiveSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         Page<User> result = userRepository.findAll(PageRequest.of(page, effectiveSize));
 
@@ -92,15 +98,15 @@ public class AdminController {
 
     @Transactional
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable String id) {
+    public ResponseEntity<?> deleteUser(@CurrentUser User admin, @PathVariable String id) {
         return userRepository.findById(id)
                 .map(user -> {
                     long fileCount = musicFileRepository.deleteByUserId(user.getId());
                     long playlistCount = playlistRepository.deleteByUserId(user.getId());
                     coverArtRepository.deleteByUserId(user.getId());
                     userRepository.deleteById(id);
-                    logger.info("Admin deleted user '{}' (id={}) and {} music files, {} playlists",
-                            user.getUsername(), id, fileCount, playlistCount);
+                    auditService.log(admin.getUsername(), AuditService.Action.ADMIN_DELETE_USER,
+                            user.getUsername(), fileCount + " files, " + playlistCount + " playlists removed");
                     return ResponseEntity.ok(Map.of(
                             "message", msg("admin.user.deleted"),
                             "filesRemoved", fileCount,

@@ -6,12 +6,17 @@ import com.stellarideas.grooves.model.Role;
 import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
+import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.LoginAttemptService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,14 +39,19 @@ public class AuthController {
     private final PasswordEncoder encoder;
     private final JwtUtils jwtUtils;
     private final MessageSource messageSource;
+    private final LoginAttemptService loginAttemptService;
+    private final AuditService auditService;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
-                          PasswordEncoder encoder, JwtUtils jwtUtils, MessageSource messageSource) {
+                          PasswordEncoder encoder, JwtUtils jwtUtils, MessageSource messageSource,
+                          LoginAttemptService loginAttemptService, AuditService auditService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
         this.jwtUtils = jwtUtils;
         this.messageSource = messageSource;
+        this.loginAttemptService = loginAttemptService;
+        this.auditService = auditService;
     }
 
     private String msg(String code, Object... args) {
@@ -50,14 +60,34 @@ public class AuthController {
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+        String username = loginRequest.getUsername();
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
+        if (loginAttemptService.isLockedOut(username)) {
+            logger.warn("Login attempt for locked account '{}'", username);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", msg("auth.locked")));
+        }
 
-        logger.info("User '{}' signed in", loginRequest.getUsername());
-        return ResponseEntity.ok(Map.of("token", jwt, "username", loginRequest.getUsername()));
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, loginRequest.getPassword()));
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
+
+            loginAttemptService.loginSucceeded(username);
+            auditService.log(username, AuditService.Action.LOGIN_SUCCESS);
+            return ResponseEntity.ok(Map.of("token", jwt, "username", username));
+        } catch (BadCredentialsException e) {
+            loginAttemptService.loginFailed(username);
+            auditService.log(username, AuditService.Action.LOGIN_FAILED);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", msg("auth.bad_credentials")));
+        } catch (LockedException e) {
+            auditService.log(username, AuditService.Action.LOGIN_LOCKED);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", msg("auth.locked")));
+        }
     }
 
     @PostMapping("/signup")
@@ -78,7 +108,7 @@ public class AuthController {
         user.setRoles(roles);
         userRepository.save(user);
 
-        logger.info("New user registered: '{}'", signUpRequest.getUsername());
+        auditService.log(signUpRequest.getUsername(), AuditService.Action.SIGNUP);
         return ResponseEntity.ok(Map.of("message", msg("auth.registered")));
     }
 }

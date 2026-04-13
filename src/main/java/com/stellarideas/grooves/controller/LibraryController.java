@@ -6,6 +6,8 @@ import com.stellarideas.grooves.repository.CoverArtRepository;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.security.CurrentUser;
+import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.MusicCatalogService;
 import com.stellarideas.grooves.service.MusicScannerService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -39,17 +41,23 @@ public class LibraryController {
     private final PlaylistRepository playlistRepository;
     private final CoverArtRepository coverArtRepository;
     private final MessageSource messageSource;
+    private final AuditService auditService;
+    private final MusicCatalogService catalogService;
 
     public LibraryController(MusicScannerService scannerService,
                              MusicFileRepository musicFileRepository,
                              PlaylistRepository playlistRepository,
                              CoverArtRepository coverArtRepository,
-                             MessageSource messageSource) {
+                             MessageSource messageSource,
+                             AuditService auditService,
+                             MusicCatalogService catalogService) {
         this.scannerService = scannerService;
         this.musicFileRepository = musicFileRepository;
         this.playlistRepository = playlistRepository;
         this.coverArtRepository = coverArtRepository;
         this.messageSource = messageSource;
+        this.auditService = auditService;
+        this.catalogService = catalogService;
     }
 
     private String msg(String code, Object... args) {
@@ -61,7 +69,7 @@ public class LibraryController {
         String path = request.getPath();
         try {
             validateScanPath(path);
-            logger.info("User '{}' scanning directory: {}", user.getUsername(), path);
+            auditService.log(user.getUsername(), AuditService.Action.SCAN_DIRECTORY, path);
             ScanResult result = scannerService.scanDirectory(user, path);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("message", msg("scan.success"));
@@ -107,6 +115,30 @@ public class LibraryController {
                 "size", result.getSize(),
                 "totalElements", result.getTotalElements(),
                 "totalPages", result.getTotalPages()
+        ));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchFiles(
+            @CurrentUser User user,
+            @RequestParam String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Search query must not be empty"));
+        }
+        size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        // Escape regex special characters to prevent injection
+        String escaped = q.replaceAll("([\\\\.*+?^${}()|\\[\\]])", "\\\\$1");
+        Page<MusicFile> result = musicFileRepository.searchByUserIdAndQuery(
+                user.getId(), escaped, PageRequest.of(page, size));
+        return ResponseEntity.ok(Map.of(
+                "content", result.getContent().stream().map(MusicFileDTO::from).collect(Collectors.toList()),
+                "page", result.getNumber(),
+                "size", result.getSize(),
+                "totalElements", result.getTotalElements(),
+                "totalPages", result.getTotalPages(),
+                "query", q
         ));
     }
 
@@ -171,7 +203,13 @@ public class LibraryController {
         MusicFile file = fileOpt.get();
         file.setGenre(genre);
         musicFileRepository.save(file);
-        logger.info("User '{}' updated genre of file '{}' to {}", user.getUsername(), id, genre);
+
+        // Record the correction so future scans of this artist use the corrected genre
+        if (file.getArtist() != null && !file.getArtist().isBlank()) {
+            catalogService.recordCorrection(file.getArtist(), genre, user.getId());
+        }
+
+        auditService.log(user.getUsername(), AuditService.Action.GENRE_UPDATE, id, genre.name());
         return ResponseEntity.ok(Map.of("message", msg("genre.updated"), "genre", genre.name()));
     }
 
@@ -187,6 +225,7 @@ public class LibraryController {
         MusicFile file = fileOpt.get();
         file.setRating(request.getRating());
         musicFileRepository.save(file);
+        auditService.log(user.getUsername(), AuditService.Action.RATING_UPDATE, id, String.valueOf(request.getRating()));
         return ResponseEntity.ok(Map.of("rating", file.getRating()));
     }
 
@@ -213,7 +252,7 @@ public class LibraryController {
         if (!modified.isEmpty()) {
             playlistRepository.saveAll(modified);
         }
-        logger.info("User '{}' bulk-deleted {} files", user.getUsername(), files.size());
+        auditService.log(user.getUsername(), AuditService.Action.BULK_DELETE, null, files.size() + " files");
         return ResponseEntity.ok(Map.of("deleted", files.size()));
     }
 
@@ -277,7 +316,7 @@ public class LibraryController {
         }
         musicFileRepository.delete(fileOpt.get());
         removeFileFromPlaylists(id, user.getId());
-        logger.info("User '{}' deleted file id={}", user.getUsername(), id);
+        auditService.log(user.getUsername(), AuditService.Action.FILE_DELETE, id);
         return ResponseEntity.ok(Map.of("message", msg("library.file.deleted")));
     }
 
@@ -287,7 +326,7 @@ public class LibraryController {
         long fileCount = musicFileRepository.deleteByUserId(user.getId());
         playlistRepository.deleteByUserId(user.getId());
         coverArtRepository.deleteByUserId(user.getId());
-        logger.info("User '{}' cleared their library ({} files removed, playlists deleted)", user.getUsername(), fileCount);
+        auditService.log(user.getUsername(), AuditService.Action.LIBRARY_CLEAR, null, fileCount + " files removed");
         return ResponseEntity.ok(Map.of("message", msg("library.cleared"), "filesRemoved", fileCount));
     }
 

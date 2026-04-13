@@ -65,9 +65,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         int count = counter.count.incrementAndGet();
 
         if (count > maxRequests) {
+            long elapsed = now - counter.windowStart;
+            long retryAfterSeconds = Math.max(1, (windowMs - elapsed) / 1000);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\"}");
+            response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
+            response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\",\"retryAfter\":" + retryAfterSeconds + "}");
             return;
         }
 

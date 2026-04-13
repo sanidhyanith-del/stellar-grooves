@@ -1,6 +1,8 @@
 package com.stellarideas.grooves.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -14,6 +16,8 @@ public class Playlist {
     @Id
     private String id;
 
+    @NotBlank
+    @Size(min = 1, max = 100)
     private String name;
 
     @JsonIgnore

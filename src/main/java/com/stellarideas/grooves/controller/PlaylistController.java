@@ -7,6 +7,7 @@ import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.security.CurrentUser;
+import com.stellarideas.grooves.service.AuditService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,13 +29,16 @@ public class PlaylistController {
     private final PlaylistRepository playlistRepository;
     private final MusicFileRepository musicFileRepository;
     private final MessageSource messageSource;
+    private final AuditService auditService;
 
     public PlaylistController(PlaylistRepository playlistRepository,
                               MusicFileRepository musicFileRepository,
-                              MessageSource messageSource) {
+                              MessageSource messageSource,
+                              AuditService auditService) {
         this.playlistRepository = playlistRepository;
         this.musicFileRepository = musicFileRepository;
         this.messageSource = messageSource;
+        this.auditService = auditService;
     }
 
     private String msg(String code, Object... args) {
@@ -54,7 +58,7 @@ public class PlaylistController {
         playlist.setName(body.getName().trim());
         playlist.setUserId(user.getId());
         Playlist saved = playlistRepository.save(playlist);
-        logger.info("User '{}' created playlist '{}'", user.getUsername(), saved.getName());
+        auditService.log(user.getUsername(), AuditService.Action.PLAYLIST_CREATE, saved.getName());
         return ResponseEntity.ok(PlaylistDTO.from(saved));
     }
 
@@ -63,7 +67,7 @@ public class PlaylistController {
         Optional<Playlist> opt = playlistRepository.findByIdAndUserId(id, user.getId());
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
         playlistRepository.delete(opt.get());
-        logger.info("User '{}' deleted playlist '{}'", user.getUsername(), opt.get().getName());
+        auditService.log(user.getUsername(), AuditService.Action.PLAYLIST_DELETE, opt.get().getName());
         return ResponseEntity.ok(Map.of("message", msg("playlist.deleted")));
     }
 

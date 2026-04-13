@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.data.mongodb.repository.Query;
+
 public interface MusicFileRepository extends MongoRepository<MusicFile, String> {
     List<MusicFile> findByUserId(String userId);
     Page<MusicFile> findByUserId(String userId, Pageable pageable);
@@ -20,4 +22,10 @@ public interface MusicFileRepository extends MongoRepository<MusicFile, String> 
     long deleteByUserId(String userId);
     long countByUserId(String userId);
     List<MusicFile> findByUserIdAndFilePathIn(String userId, Set<String> filePaths);
+
+    @Query("{ 'userId': ?0, '$or': [ " +
+           "{ 'title': { '$regex': ?1, '$options': 'i' } }, " +
+           "{ 'artist': { '$regex': ?1, '$options': 'i' } }, " +
+           "{ 'album': { '$regex': ?1, '$options': 'i' } } ] }")
+    Page<MusicFile> searchByUserIdAndQuery(String userId, String query, Pageable pageable);
 }

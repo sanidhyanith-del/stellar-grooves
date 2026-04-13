@@ -1,12 +1,17 @@
 package com.stellarideas.grooves.service;
 
 import com.stellarideas.grooves.model.Genre;
+import com.stellarideas.grooves.repository.GenreCorrectionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class MusicCatalogServiceTest {
 
@@ -14,7 +19,9 @@ class MusicCatalogServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MusicCatalogService();
+        GenreCorrectionRepository correctionRepository = mock(GenreCorrectionRepository.class);
+        when(correctionRepository.findByArtistLower(anyString())).thenReturn(Optional.empty());
+        service = new MusicCatalogService(correctionRepository);
         service.loadCatalog();
     }
 

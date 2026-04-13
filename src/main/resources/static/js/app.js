@@ -136,17 +136,63 @@ function renderArtistsView() {
     });
 }
 
+let albumViewMode = 'grid';
+
 function renderAlbumsView() {
     const src = nav.artist ? allFiles.filter(f => (f.artist || '(Unknown)') === nav.artist) : allFiles;
-    const m = {}; src.forEach(f => { const al = f.album || '(Unknown)'; const ar = f.artist || '\u2014'; const k = al + '||' + ar; if (!m[k]) m[k] = { album: al, artist: ar, tracks: 0 }; m[k].tracks++; });
-    const tbody = document.getElementById('albumsBody'); tbody.innerHTML = '';
-    Object.values(m).sort((a, b) => a.album.localeCompare(b.album)).forEach(({ album, artist, tracks }) => {
-        const tr = document.createElement('tr'); tr.className = 'drill-row';
-        tr.innerHTML = `<td><span class="drill-link">${escapeHtml(album)}</span></td><td class="hide-xs">${escapeHtml(artist)}</td><td class="text-end">${tracks}</td>`;
-        tr.addEventListener('click', () => navigate({ view: 'tracks', artist: nav.artist || artist, album }));
-        tbody.appendChild(tr);
+    const m = {}; src.forEach(f => {
+        const al = f.album || '(Unknown)'; const ar = f.artist || '\u2014'; const k = al + '||' + ar;
+        if (!m[k]) m[k] = { album: al, artist: ar, tracks: 0, coverFileId: null };
+        m[k].tracks++;
+        if (!m[k].coverFileId && f.hasCoverArt) m[k].coverFileId = f.id;
     });
+    const sorted = Object.values(m).sort((a, b) => a.album.localeCompare(b.album));
+
+    // Grid view
+    const grid = document.getElementById('albumsGrid');
+    const tableWrap = document.getElementById('albumsTableWrap');
+    if (albumViewMode === 'grid') {
+        grid.classList.remove('d-none'); tableWrap.classList.add('d-none');
+        grid.innerHTML = '';
+        sorted.forEach(({ album, artist, tracks, coverFileId }) => {
+            const card = document.createElement('div'); card.className = 'album-card';
+            if (coverFileId) {
+                const img = document.createElement('img'); img.className = 'album-card-art';
+                img.src = `/api/v1/library/files/${coverFileId}/cover`; img.alt = escapeHtml(album);
+                img.loading = 'lazy';
+                card.appendChild(img);
+            } else {
+                const ph = document.createElement('div'); ph.className = 'album-card-placeholder';
+                ph.textContent = '\uD83C\uDFB5';
+                card.appendChild(ph);
+            }
+            const info = document.createElement('div'); info.className = 'album-card-info';
+            info.innerHTML = `<div class="album-card-title" title="${escapeHtml(album)}">${escapeHtml(album)}</div>`
+                + `<div class="album-card-artist">${escapeHtml(artist)}</div>`
+                + `<div class="album-card-count">${tracks} track${tracks !== 1 ? 's' : ''}</div>`;
+            card.appendChild(info);
+            card.addEventListener('click', () => navigate({ view: 'tracks', artist: nav.artist || artist, album }));
+            grid.appendChild(card);
+        });
+    } else {
+        grid.classList.add('d-none'); tableWrap.classList.remove('d-none');
+        const tbody = document.getElementById('albumsBody'); tbody.innerHTML = '';
+        sorted.forEach(({ album, artist, tracks }) => {
+            const tr = document.createElement('tr'); tr.className = 'drill-row';
+            tr.innerHTML = `<td><span class="drill-link">${escapeHtml(album)}</span></td><td class="hide-xs">${escapeHtml(artist)}</td><td class="text-end">${tracks}</td>`;
+            tr.addEventListener('click', () => navigate({ view: 'tracks', artist: nav.artist || artist, album }));
+            tbody.appendChild(tr);
+        });
+    }
 }
+
+// Album view toggle
+document.getElementById('albumViewGrid').addEventListener('click', function() {
+    albumViewMode = 'grid'; this.classList.add('active'); document.getElementById('albumViewList').classList.remove('active'); renderAlbumsView();
+});
+document.getElementById('albumViewList').addEventListener('click', function() {
+    albumViewMode = 'list'; this.classList.add('active'); document.getElementById('albumViewGrid').classList.remove('active'); renderAlbumsView();
+});
 
 // ── Tracks view ──────────────────────────────────────────
 function getVisibleTracks() {
@@ -375,11 +421,38 @@ document.getElementById('statCardGenres').addEventListener('click', () => naviga
 document.getElementById('statCardDupes').addEventListener('click', () => navigate({ view: 'duplicates' }));
 
 // ── Advanced filters ─────────────────────────────────────
+let searchDebounce = null;
 ['searchInput', 'genreFilter', 'artistFilter', 'albumFilter'].forEach(id => {
     document.getElementById(id).addEventListener(id === 'searchInput' ? 'input' : 'change', () => {
-        if (nav.view === 'library' || (nav.view === 'tracks' && !nav.artist && !nav.album)) renderTracksView();
+        if (nav.view === 'library' || (nav.view === 'tracks' && !nav.artist && !nav.album)) {
+            if (id === 'searchInput') {
+                clearTimeout(searchDebounce);
+                const q = document.getElementById('searchInput').value.trim();
+                if (q.length >= 2) {
+                    searchDebounce = setTimeout(() => serverSearch(q), 300);
+                } else {
+                    renderTracksView();
+                }
+            } else {
+                renderTracksView();
+            }
+        }
     });
 });
+
+async function serverSearch(query) {
+    try {
+        const r = await fetch(`/api/v1/library/search?q=${encodeURIComponent(query)}&size=200`);
+        if (!r.ok) return;
+        const d = await r.json();
+        cachedVisibleTracks = d.content;
+        const tbody = document.getElementById('musicTableBody'); tbody.innerHTML = '';
+        updateTrackCount();
+        if (cachedVisibleTracks.length <= VIRTUAL_THRESHOLD) { cachedVisibleTracks.forEach(f => tbody.appendChild(buildTrackRow(f))); }
+        else { renderVirtualSlice(); }
+        document.getElementById('trackCount').textContent = `${d.totalElements} result${d.totalElements !== 1 ? 's' : ''} for "${query}"`;
+    } catch (e) { console.error('Search failed', e); }
+}
 
 // ── Duplicates view ──────────────────────────────────────
 async function renderDuplicatesView() {
@@ -523,23 +596,51 @@ async function renderPlaylistView() {
     tbody.innerHTML = ''; empty.classList.add('d-none');
     try {
         const r = await fetch(`/api/v1/playlists/${nav.playlistId}/tracks`); if (!r.ok) return;
-        const tracks = await r.json();
+        let tracks = await r.json();
         if (tracks.length === 0) { empty.classList.remove('d-none'); return; }
+
+        // Apply sort
+        const sortBy = document.getElementById('playlistSort').value;
+        if (sortBy !== 'custom') {
+            tracks = [...tracks].sort((a, b) => {
+                if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+                if (sortBy === 'year') return (b.year || '').localeCompare(a.year || '');
+                const av = a[sortBy] || '', bv = b[sortBy] || '';
+                return av.localeCompare(bv);
+            });
+        }
+
+        const isDraggable = sortBy === 'custom';
         tracks.forEach(file => {
-            const tr = document.createElement('tr'); tr.dataset.fileId = file.id; tr.draggable = true;
+            const tr = document.createElement('tr'); tr.dataset.fileId = file.id; tr.draggable = isDraggable;
             if (currentFileId === file.id) tr.classList.add('table-active');
 
             // Drag handle + play
             const tdP = document.createElement('td'); tdP.className = 'col-play';
-            const dh = document.createElement('span'); dh.className = 'drag-handle'; dh.textContent = '\u2630'; dh.setAttribute('aria-label', 'Drag to reorder');
+            if (isDraggable) {
+                const dh = document.createElement('span'); dh.className = 'drag-handle'; dh.textContent = '\u2630'; dh.setAttribute('aria-label', 'Drag to reorder');
+                tdP.appendChild(dh);
+            }
             const bp = document.createElement('button'); bp.className = 'btn-play-row' + (currentFileId === file.id ? ' playing' : '');
             bp.setAttribute('aria-label', 'Play ' + text(file.title)); bp.textContent = (currentFileId === file.id && !audioEl.paused) ? '\u23F8' : '\u25B6'; bp.dataset.action = 'play';
-            tdP.appendChild(dh); tdP.appendChild(bp); tr.appendChild(tdP);
+            tdP.appendChild(bp); tr.appendChild(tdP);
 
             const tdT = document.createElement('td'); tdT.textContent = text(file.title); tr.appendChild(tdT);
             const tdAr = document.createElement('td'); tdAr.textContent = text(file.artist); tr.appendChild(tdAr);
             const tdAl = document.createElement('td'); tdAl.className = 'hide-xs'; tdAl.textContent = text(file.album); tr.appendChild(tdAl);
             const tdG = document.createElement('td'); tdG.appendChild(genreBadge(file.genre)); tr.appendChild(tdG);
+
+            // Rating stars (read-only in playlist view)
+            const tdR = document.createElement('td'); tdR.className = 'hide-xs';
+            const stars = document.createElement('span'); stars.className = 'star-rating';
+            for (let i = 1; i <= 5; i++) {
+                const s = document.createElement('span');
+                s.className = 'star' + (i <= (file.rating || 0) ? ' filled' : '');
+                s.textContent = '\u2605';
+                stars.appendChild(s);
+            }
+            tdR.appendChild(stars); tr.appendChild(tdR);
+
             const tdD = document.createElement('td'); tdD.className = 'hide-xs'; tdD.textContent = decadeFromYear(file.year); tr.appendChild(tdD);
 
             const tdA = document.createElement('td'); tdA.className = 'hide-xs col-actions';
@@ -549,6 +650,9 @@ async function renderPlaylistView() {
         });
     } catch (e) { console.error(e); }
 }
+
+// ── Playlist sort ────────────────────────────────────────
+document.getElementById('playlistSort').addEventListener('change', () => { if (nav.view === 'playlist') renderPlaylistView(); });
 
 // ── Playlist export ──────────────────────────────────────
 document.getElementById('exportJsonBtn').addEventListener('click', () => { if (nav.playlistId) window.location = `/api/v1/playlists/${nav.playlistId}/export?format=json`; });

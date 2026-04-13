@@ -3,6 +3,8 @@ package com.stellarideas.grooves.controller;
 import com.stellarideas.grooves.dto.SignupRequest;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
+import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.support.ResourceBundleMessageSource;
@@ -42,7 +44,10 @@ class AuthConcurrencyTest {
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("messages");
 
-        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils, messageSource);
+        LoginAttemptService loginAttemptService = mock(LoginAttemptService.class);
+        AuditService auditService = mock(AuditService.class);
+        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils,
+                messageSource, loginAttemptService, auditService);
 
         when(passwordEncoder.encode(any())).thenReturn("encoded");
     }
