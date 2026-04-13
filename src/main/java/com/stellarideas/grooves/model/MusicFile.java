@@ -2,7 +2,9 @@ package com.stellarideas.grooves.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.Size;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -48,14 +50,22 @@ public class MusicFile {
 
     private boolean hasCoverArt;
 
+    private java.util.List<Genre> additionalGenres;
+
     private boolean deleted = false;
     private Instant deletedAt;
+
+    @CreatedDate
+    private Instant createdAt;
+    @LastModifiedDate
+    private Instant updatedAt;
 
     public MusicFile() {}
 
     public MusicFile(String id, String filePath, String fileName, String artist, String album,
-                     String title, String year, Genre genre, String userId, int rating, boolean hasCoverArt,
-                     boolean deleted, Instant deletedAt) {
+                     String title, String year, Genre genre, java.util.List<Genre> additionalGenres,
+                     String userId, int rating, boolean hasCoverArt,
+                     boolean deleted, Instant deletedAt, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.filePath = filePath;
         this.fileName = fileName;
@@ -64,11 +74,14 @@ public class MusicFile {
         this.title = title;
         this.year = year;
         this.genre = genre;
+        this.additionalGenres = additionalGenres;
         this.userId = userId;
         this.rating = rating;
         this.hasCoverArt = hasCoverArt;
         this.deleted = deleted;
         this.deletedAt = deletedAt;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public String getId() { return id; }
@@ -112,6 +125,15 @@ public class MusicFile {
     public Instant getDeletedAt() { return deletedAt; }
     public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 
+    public java.util.List<Genre> getAdditionalGenres() { return additionalGenres; }
+    public void setAdditionalGenres(java.util.List<Genre> additionalGenres) { this.additionalGenres = additionalGenres; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
     public static MusicFileBuilder builder() {
         return new MusicFileBuilder();
     }
@@ -125,11 +147,14 @@ public class MusicFile {
         private String title;
         private String year;
         private Genre genre;
+        private java.util.List<Genre> additionalGenres;
         private String userId;
         private int rating;
         private boolean hasCoverArt;
         private boolean deleted = false;
         private Instant deletedAt;
+        private Instant createdAt;
+        private Instant updatedAt;
 
         MusicFileBuilder() {}
 
@@ -141,14 +166,18 @@ public class MusicFile {
         public MusicFileBuilder title(String title) { this.title = title; return this; }
         public MusicFileBuilder year(String year) { this.year = year; return this; }
         public MusicFileBuilder genre(Genre genre) { this.genre = genre; return this; }
+        public MusicFileBuilder additionalGenres(java.util.List<Genre> additionalGenres) { this.additionalGenres = additionalGenres; return this; }
         public MusicFileBuilder userId(String userId) { this.userId = userId; return this; }
         public MusicFileBuilder rating(int rating) { this.rating = rating; return this; }
         public MusicFileBuilder hasCoverArt(boolean hasCoverArt) { this.hasCoverArt = hasCoverArt; return this; }
         public MusicFileBuilder deleted(boolean deleted) { this.deleted = deleted; return this; }
         public MusicFileBuilder deletedAt(Instant deletedAt) { this.deletedAt = deletedAt; return this; }
+        public MusicFileBuilder createdAt(Instant createdAt) { this.createdAt = createdAt; return this; }
+        public MusicFileBuilder updatedAt(Instant updatedAt) { this.updatedAt = updatedAt; return this; }
 
         public MusicFile build() {
-            return new MusicFile(id, filePath, fileName, artist, album, title, year, genre, userId, rating, hasCoverArt, deleted, deletedAt);
+            return new MusicFile(id, filePath, fileName, artist, album, title, year, genre, additionalGenres,
+                    userId, rating, hasCoverArt, deleted, deletedAt, createdAt, updatedAt);
         }
     }
 }

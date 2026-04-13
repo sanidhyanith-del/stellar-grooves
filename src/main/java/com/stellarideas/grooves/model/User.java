@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -44,13 +46,19 @@ public class User {
     private String scanPath;
     private Instant lastScheduledScan;
 
+    @CreatedDate
+    private Instant createdAt;
+    @LastModifiedDate
+    private Instant updatedAt;
+
     public User() {
     }
 
     public User(String id, String username, String password, String email, String musicDirectory,
                 Set<Role> roles, boolean accountLocked, boolean enabled,
                 int failedLoginAttempts, Instant lockoutExpiry,
-                String scanSchedule, String scanPath, Instant lastScheduledScan) {
+                String scanSchedule, String scanPath, Instant lastScheduledScan,
+                Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.username = username;
         this.password = password;
@@ -64,6 +72,8 @@ public class User {
         this.scanSchedule = scanSchedule;
         this.scanPath = scanPath;
         this.lastScheduledScan = lastScheduledScan;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
     }
 
     public String getId() {
@@ -171,6 +181,22 @@ public class User {
         this.lastScheduledScan = lastScheduledScan;
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
     public static UserBuilder builder() {
         return new UserBuilder();
     }
@@ -189,6 +215,8 @@ public class User {
         private String scanSchedule;
         private String scanPath;
         private Instant lastScheduledScan;
+        private Instant createdAt;
+        private Instant updatedAt;
 
         UserBuilder() {
         }
@@ -258,9 +286,20 @@ public class User {
             return this;
         }
 
+        public UserBuilder createdAt(Instant createdAt) {
+            this.createdAt = createdAt;
+            return this;
+        }
+
+        public UserBuilder updatedAt(Instant updatedAt) {
+            this.updatedAt = updatedAt;
+            return this;
+        }
+
         public User build() {
             return new User(id, username, password, email, musicDirectory, roles, accountLocked, enabled,
-                    failedLoginAttempts, lockoutExpiry, scanSchedule, scanPath, lastScheduledScan);
+                    failedLoginAttempts, lockoutExpiry, scanSchedule, scanPath, lastScheduledScan,
+                    createdAt, updatedAt);
         }
     }
 }

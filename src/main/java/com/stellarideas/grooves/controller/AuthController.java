@@ -18,6 +18,7 @@ import com.stellarideas.grooves.security.JwtUtils;
 import com.stellarideas.grooves.service.AuditService;
 import com.stellarideas.grooves.service.LoginAttemptService;
 import com.stellarideas.grooves.service.MessageHelper;
+import com.stellarideas.grooves.service.PasswordResetMailService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -56,13 +57,15 @@ public class AuthController {
     private final BlacklistedTokenRepository blacklistedTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final PasswordResetMailService passwordResetMailService;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
                           PasswordEncoder encoder, JwtUtils jwtUtils, MessageHelper msg,
                           LoginAttemptService loginAttemptService, AuditService auditService,
                           BlacklistedTokenRepository blacklistedTokenRepository,
                           RefreshTokenRepository refreshTokenRepository,
-                          PasswordResetTokenRepository passwordResetTokenRepository) {
+                          PasswordResetTokenRepository passwordResetTokenRepository,
+                          PasswordResetMailService passwordResetMailService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
@@ -73,6 +76,7 @@ public class AuthController {
         this.blacklistedTokenRepository = blacklistedTokenRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
+        this.passwordResetMailService = passwordResetMailService;
     }
 
     @PostMapping("/signin")
@@ -189,7 +193,8 @@ public class AuthController {
             PasswordResetToken resetToken = new PasswordResetToken(user.getId());
             passwordResetTokenRepository.save(resetToken);
 
-            logger.info("Password reset token generated for user '{}': {}", user.getUsername(), resetToken.getToken());
+            passwordResetMailService.sendResetEmail(user.getEmail(), user.getUsername(), resetToken.getToken());
+            logger.info("Password reset token generated for user '{}'", user.getUsername());
             auditService.log(user.getUsername(), AuditService.Action.PASSWORD_RESET_REQUEST);
         }
 

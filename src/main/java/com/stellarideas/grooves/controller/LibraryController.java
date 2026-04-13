@@ -135,7 +135,8 @@ public class LibraryController {
             logger.warn("Streaming blocked: user '{}' has no music directory configured", user.getUsername());
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        Path musicDir = Paths.get(user.getMusicDirectory()).normalize();
+        Path musicDir = Paths.get(user.getMusicDirectory()).toRealPath();
+        path = path.toRealPath();
         if (!path.startsWith(musicDir)) {
             logger.warn("Path traversal blocked: user '{}' attempted to stream '{}' outside music directory '{}'",
                     user.getUsername(), path, musicDir);
@@ -289,10 +290,17 @@ public class LibraryController {
 
     // --- Export endpoints ---
 
+    private static final int MAX_EXPORT_SIZE = 50_000;
+
     @GetMapping("/export")
     public ResponseEntity<?> exportLibrary(@CurrentUser User user,
                                            @RequestParam(defaultValue = "json") String format) {
         List<MusicFile> files = libraryService.getAllFiles(user.getId());
+        if (files.size() > MAX_EXPORT_SIZE) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("message", "Library too large to export (" + files.size()
+                            + " tracks). Maximum is " + MAX_EXPORT_SIZE + "."));
+        }
         if ("csv".equalsIgnoreCase(format)) {
             return exportAsCsv(files);
         }

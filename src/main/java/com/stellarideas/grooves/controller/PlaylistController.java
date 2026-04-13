@@ -143,7 +143,7 @@ public class PlaylistController {
             }
             sb.append(f.getTitle() != null ? f.getTitle() : f.getFileName());
             sb.append("\n");
-            sb.append(f.getFilePath()).append("\n");
+            sb.append(f.getFileName()).append("\n");
         }
         String filename = playlist.getName().replaceAll("[^a-zA-Z0-9._-]", "_") + ".m3u";
         return ResponseEntity.ok()

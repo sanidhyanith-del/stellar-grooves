@@ -85,9 +85,20 @@ public class AdminController {
     }
 
     @GetMapping("/users/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable String id) {
+    public ResponseEntity<?> getUserById(@PathVariable String id) {
         return userRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .map(u -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", u.getId());
+                    m.put("username", u.getUsername());
+                    m.put("email", u.getEmail());
+                    m.put("roles", u.getRoles());
+                    m.put("enabled", u.isEnabled());
+                    m.put("musicDirectory", u.getMusicDirectory());
+                    m.put("scanSchedule", u.getScanSchedule());
+                    m.put("fileCount", musicFileRepository.countByUserId(u.getId()));
+                    return ResponseEntity.ok(m);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 

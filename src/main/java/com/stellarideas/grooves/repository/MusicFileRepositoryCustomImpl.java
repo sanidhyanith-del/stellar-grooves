@@ -123,11 +123,10 @@ public class MusicFileRepositoryCustomImpl implements MusicFileRepositoryCustom 
         ), "music_files", Document.class).getMappedResults().size();
         stats.put("totalAlbums", totalAlbums);
 
-        // Decade distribution
+        // Decade distribution (null/empty years already filtered in match stage)
         AggregationOperation decadeGroup = context -> new Document("$group",
                 new Document("_id", new Document("$concat", List.of(
-                        new Document("$substr", List.of(
-                                new Document("$ifNull", List.of("$year", "0000")), 0, 3)),
+                        new Document("$substr", List.of("$year", 0, 3)),
                         "0s")))
                         .append("count", new Document("$sum", 1)));
         Aggregation decadeAgg = Aggregation.newAggregation(
