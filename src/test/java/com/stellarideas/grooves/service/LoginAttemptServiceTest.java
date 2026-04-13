@@ -1,6 +1,7 @@
 package com.stellarideas.grooves.service;
 
 import com.stellarideas.grooves.model.User;
+import com.stellarideas.grooves.repository.RefreshTokenRepository;
 import com.stellarideas.grooves.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,11 +18,13 @@ class LoginAttemptServiceTest {
 
     private LoginAttemptService service;
     private UserRepository userRepository;
+    private RefreshTokenRepository refreshTokenRepository;
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
-        service = new LoginAttemptService(userRepository);
+        refreshTokenRepository = mock(RefreshTokenRepository.class);
+        service = new LoginAttemptService(userRepository, refreshTokenRepository);
         ReflectionTestUtils.setField(service, "maxFailedAttempts", 5);
         ReflectionTestUtils.setField(service, "lockoutDurationMinutes", 15L);
     }
@@ -49,6 +52,7 @@ class LoginAttemptServiceTest {
     @Test
     void loginFailedLocksAccountAfterMaxAttempts() {
         User user = createUser("testuser");
+        user.setId("user123");
         user.setFailedLoginAttempts(4); // One more will reach 5
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(user));
 
@@ -57,6 +61,7 @@ class LoginAttemptServiceTest {
         assertEquals(5, user.getFailedLoginAttempts());
         assertTrue(user.isAccountLocked());
         assertNotNull(user.getLockoutExpiry());
+        verify(refreshTokenRepository).deleteByUserId("user123");
         verify(userRepository).save(user);
     }
 

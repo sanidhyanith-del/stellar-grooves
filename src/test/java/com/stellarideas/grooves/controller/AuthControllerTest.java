@@ -129,7 +129,7 @@ class AuthControllerTest {
 
         ResponseEntity<?> response = controller.registerUser(signupRequest("taken", "a@b.com", "password123"));
 
-        assertEquals(400, response.getStatusCode().value());
+        assertEquals(409, response.getStatusCode().value());
     }
 
     @Test
@@ -139,7 +139,7 @@ class AuthControllerTest {
 
         ResponseEntity<?> response = controller.registerUser(signupRequest("newuser", "taken@test.com", "password123"));
 
-        assertEquals(400, response.getStatusCode().value());
+        assertEquals(409, response.getStatusCode().value());
     }
 
     // --- Signin tests ---
@@ -150,7 +150,7 @@ class AuthControllerTest {
 
         ResponseEntity<?> response = controller.authenticateUser(loginRequest("lockeduser", "password123"));
 
-        assertEquals(403, response.getStatusCode().value());
+        assertEquals(401, response.getStatusCode().value());
     }
 
     @Test
@@ -171,7 +171,7 @@ class AuthControllerTest {
 
         ResponseEntity<?> response = controller.authenticateUser(loginRequest("lockuser", "pass"));
 
-        assertEquals(403, response.getStatusCode().value());
+        assertEquals(401, response.getStatusCode().value());
         verify(auditService).log(eq("lockuser"), eq(AuditService.Action.LOGIN_LOCKED));
     }
 
@@ -362,6 +362,7 @@ class AuthControllerTest {
     void logoutBlacklistsToken() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader("Authorization")).thenReturn("Bearer mock-jwt-token");
+        when(jwtUtils.validateJwtToken("mock-jwt-token")).thenReturn(true);
         when(jwtUtils.getJtiFromToken("mock-jwt-token")).thenReturn("jti-123");
         when(jwtUtils.getExpirationFromToken("mock-jwt-token")).thenReturn(Instant.now().plusSeconds(300));
         when(jwtUtils.getUserNameFromJwtToken("mock-jwt-token")).thenReturn("testuser");
@@ -378,13 +379,13 @@ class AuthControllerTest {
     }
 
     @Test
-    void logoutWithoutTokenStillSucceeds() {
+    void logoutWithoutTokenReturnsBadRequest() {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getHeader("Authorization")).thenReturn(null);
 
         ResponseEntity<?> response = controller.logoutUser(request);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(400, response.getStatusCode().value());
         verify(blacklistedTokenRepository, never()).save(any());
     }
 }

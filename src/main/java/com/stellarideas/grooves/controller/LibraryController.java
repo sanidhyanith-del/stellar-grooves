@@ -91,9 +91,9 @@ public class LibraryController {
             return ResponseEntity.badRequest()
                     .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, e.getMessage()));
         } catch (Exception e) {
-            logger.error("Scan failed for user '{}' on path '{}': {}", user.getUsername(), path, e.getMessage());
+            logger.error("Scan failed for user '{}' on path '{}': {}", user.getUsername(), path, e.getMessage(), e);
             return ResponseEntity.internalServerError()
-                    .body(GlobalExceptionHandler.problem(HttpStatus.INTERNAL_SERVER_ERROR, msg.msg("scan.failed", e.getMessage())));
+                    .body(GlobalExceptionHandler.problem(HttpStatus.INTERNAL_SERVER_ERROR, msg.msg("scan.failed", "An unexpected error occurred. Please try again.")));
         }
     }
 
@@ -375,12 +375,33 @@ public class LibraryController {
     @PutMapping("/scan/schedule")
     public ResponseEntity<?> setScanSchedule(@CurrentUser User user,
                                              @Valid @RequestBody com.stellarideas.grooves.dto.ScanScheduleRequest request) {
+        // Validate cron expression
+        try {
+            org.springframework.scheduling.support.CronExpression.parse(request.getCronExpression());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST,
+                            "Invalid cron expression: " + e.getMessage()));
+        }
+
+        // Validate scan path before saving
+        try {
+            validateScanPath(request.getPath());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, e.getMessage()));
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Failed to validate scan path"));
+        }
+
         user.setScanSchedule(request.getCronExpression());
         user.setScanPath(request.getPath());
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("message", "Scan schedule saved",
-                "cronExpression", request.getCronExpression() != null ? request.getCronExpression() : "",
-                "path", request.getPath() != null ? request.getPath() : ""));
+                "cronExpression", request.getCronExpression(),
+                "path", request.getPath()));
     }
 
     @GetMapping("/scan/schedule")

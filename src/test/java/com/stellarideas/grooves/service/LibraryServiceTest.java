@@ -90,8 +90,9 @@ class LibraryServiceTest {
 
         service.searchFiles("user1", "AC/DC (Live)", 0, 50);
 
-        // Verify regex special chars are escaped
-        verify(musicFileRepository).searchByUserIdAndQuery(eq("user1"), eq("AC/DC \\(Live\\)"), any(PageRequest.class));
+        // Verify regex special chars are escaped using Pattern.quote
+        verify(musicFileRepository).searchByUserIdAndQuery(
+                eq("user1"), eq(java.util.regex.Pattern.quote("AC/DC (Live)")), any(PageRequest.class));
     }
 
     @Test

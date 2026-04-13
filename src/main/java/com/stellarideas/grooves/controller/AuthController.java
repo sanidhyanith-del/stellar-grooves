@@ -85,8 +85,9 @@ public class AuthController {
 
         if (loginAttemptService.isLockedOut(username)) {
             logger.warn("Login attempt for locked account '{}'", username);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(GlobalExceptionHandler.problem(HttpStatus.FORBIDDEN, msg.msg("auth.locked")));
+            // Return 401 (not 403) to avoid leaking account lock status
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.UNAUTHORIZED, msg.msg("auth.bad_credentials")));
         }
 
         try {
@@ -117,8 +118,9 @@ public class AuthController {
                     .body(GlobalExceptionHandler.problem(HttpStatus.UNAUTHORIZED, msg.msg("auth.bad_credentials")));
         } catch (LockedException e) {
             auditService.log(username, AuditService.Action.LOGIN_LOCKED);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(GlobalExceptionHandler.problem(HttpStatus.FORBIDDEN, msg.msg("auth.locked")));
+            // Return 401 (not 403) to avoid leaking account lock status
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.UNAUTHORIZED, msg.msg("auth.bad_credentials")));
         }
     }
 
@@ -127,8 +129,9 @@ public class AuthController {
         String normalizedEmail = signUpRequest.getEmail().toLowerCase(java.util.Locale.ROOT);
         if (userRepository.existsByUsername(signUpRequest.getUsername())
                 || userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
-            return ResponseEntity.badRequest()
-                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, msg.msg("auth.duplicate")));
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.CONFLICT,
+                            "Unable to complete registration. If you already have an account, try signing in."));
         }
 
         User user = User.builder()
@@ -151,12 +154,10 @@ public class AuthController {
         return refreshTokenRepository.findByToken(request.getRefreshToken())
                 .filter(rt -> rt.getExpiresAt().isAfter(Instant.now()))
                 .map(rt -> {
-                    // Delete old refresh token
-                    refreshTokenRepository.delete(rt);
-
                     // Look up user to generate new JWT
                     User user = userRepository.findById(rt.getUserId()).orElse(null);
                     if (user == null) {
+                        refreshTokenRepository.delete(rt);
                         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                                 .body((Object) GlobalExceptionHandler.problem(HttpStatus.UNAUTHORIZED, "Refresh token not found or expired"));
                     }
@@ -170,10 +171,11 @@ public class AuthController {
                             principal, null, java.util.Collections.emptyList());
                     String newJwt = jwtUtils.generateJwtToken(authentication);
 
-                    // Create new refresh token
+                    // Create new refresh token, then delete old one
                     RefreshToken newRefreshToken = new RefreshToken(
                             user.getId(), jwtUtils.getRefreshTokenExpirationMs());
                     refreshTokenRepository.save(newRefreshToken);
+                    refreshTokenRepository.delete(rt);
 
                     auditService.log(user.getUsername(), AuditService.Action.TOKEN_REFRESH);
                     return ResponseEntity.ok((Object) Map.of(
@@ -238,23 +240,30 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logoutUser(HttpServletRequest request) {
         String headerAuth = request.getHeader("Authorization");
-        if (StringUtils.hasText(headerAuth) && headerAuth.startsWith("Bearer ")) {
-            String token = headerAuth.substring(7);
-            String jti = jwtUtils.getJtiFromToken(token);
-            Instant expiration = jwtUtils.getExpirationFromToken(token);
-            String username = jwtUtils.getUserNameFromJwtToken(token);
-
-            if (jti != null && expiration != null) {
-                blacklistedTokenRepository.save(new BlacklistedToken(jti, expiration, username));
-
-                // Delete all refresh tokens for this user
-                userRepository.findByUsername(username).ifPresent(
-                        user -> refreshTokenRepository.deleteByUserId(user.getId()));
-
-                auditService.log(username, AuditService.Action.LOGOUT);
-                return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
-            }
+        if (!StringUtils.hasText(headerAuth) || !headerAuth.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, "Authorization token is required for logout"));
         }
-        return ResponseEntity.ok(Map.of("message", "Logged out"));
+
+        String token = headerAuth.substring(7);
+        if (!jwtUtils.validateJwtToken(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.UNAUTHORIZED, "Invalid or expired token"));
+        }
+
+        String jti = jwtUtils.getJtiFromToken(token);
+        Instant expiration = jwtUtils.getExpirationFromToken(token);
+        String username = jwtUtils.getUserNameFromJwtToken(token);
+
+        if (jti != null && expiration != null) {
+            blacklistedTokenRepository.save(new BlacklistedToken(jti, expiration, username));
+
+            // Delete all refresh tokens for this user
+            userRepository.findByUsername(username).ifPresent(
+                    user -> refreshTokenRepository.deleteByUserId(user.getId()));
+
+            auditService.log(username, AuditService.Action.LOGOUT);
+        }
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 }

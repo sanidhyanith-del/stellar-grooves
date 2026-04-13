@@ -14,6 +14,7 @@ import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.images.Artwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,7 +27,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
-public class MusicScannerService {
+public class MusicScannerService implements DisposableBean {
 
     private static final Logger logger = LoggerFactory.getLogger(MusicScannerService.class);
 
@@ -67,6 +68,12 @@ public class MusicScannerService {
         this.repository = repository;
         this.coverArtRepository = coverArtRepository;
         this.progressEmitter = progressEmitter;
+    }
+
+    @Override
+    public void destroy() {
+        fileReadExecutor.shutdownNow();
+        logger.info("Audio file reader executor shut down");
     }
 
     public ScanResult scanDirectory(User user, String directoryPath) throws Exception {
@@ -154,11 +161,11 @@ public class MusicScannerService {
                                 logger.debug("Cover art quota exceeded for user '{}', skipping art extraction",
                                         user.getUsername());
                             } else {
-                                hasCover = extractCoverArt(tag, user.getId(), artist, album);
+                                long artSize = extractCoverArt(tag, user.getId(), artist, album);
+                                hasCover = artSize > 0;
                                 if (hasCover) {
                                     coverArtKeys.add(artKey);
-                                    // Approximate usage tracking within the scan
-                                    coverArtUsedBytes += MAX_COVER_ART_BYTES / 10; // rough estimate
+                                    coverArtUsedBytes += artSize;
                                     coverArtQuotaExceeded = coverArtUsedBytes >= coverArtQuotaBytes;
                                 }
                             }
@@ -215,21 +222,26 @@ public class MusicScannerService {
         return result;
     }
 
-    private boolean extractCoverArt(Tag tag, String userId, String artist, String album) {
+    /**
+     * Extract and store cover art from the audio tag.
+     * @return the size in bytes of the stored artwork, or 0 if nothing was stored
+     */
+    private long extractCoverArt(Tag tag, String userId, String artist, String album) {
         try {
-            if (tag == null) return false;
+            if (tag == null) return 0;
             Artwork artwork = tag.getFirstArtwork();
             if (artwork == null || artwork.getBinaryData() == null || artwork.getBinaryData().length == 0) {
-                return false;
+                return 0;
             }
-            if (artwork.getBinaryData().length > MAX_COVER_ART_BYTES) {
+            int dataLength = artwork.getBinaryData().length;
+            if (dataLength > MAX_COVER_ART_BYTES) {
                 logger.warn("Cover art for '{} - {}' exceeds max size ({} bytes), skipping",
-                        artist, album, artwork.getBinaryData().length);
-                return false;
+                        artist, album, dataLength);
+                return 0;
             }
             // Check if we already have art for this album
             if (coverArtRepository.findByUserIdAndArtistAndAlbum(userId, artist, album).isPresent()) {
-                return true;
+                return dataLength;
             }
             CoverArt art = new CoverArt();
             art.setUserId(userId);
@@ -238,10 +250,10 @@ public class MusicScannerService {
             art.setMimeType(artwork.getMimeType() != null ? artwork.getMimeType() : "image/jpeg");
             art.setData(artwork.getBinaryData());
             coverArtRepository.save(art);
-            return true;
+            return dataLength;
         } catch (Exception e) {
             logger.debug("Failed to extract cover art: {}", e.getMessage());
-            return false;
+            return 0;
         }
     }
 

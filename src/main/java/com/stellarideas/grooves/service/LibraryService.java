@@ -56,8 +56,8 @@ public class LibraryService {
         } catch (Exception e) {
             // Text index may not exist yet — fall through to regex
         }
-        // Fallback to regex search
-        String escaped = query.replaceAll("([\\\\.*+?^${}()|\\[\\]])", "\\\\$1");
+        // Fallback to regex search — escape all regex metacharacters to prevent ReDoS
+        String escaped = java.util.regex.Pattern.quote(query);
         return musicFileRepository.searchByUserIdAndQuery(userId, escaped, PageRequest.of(page, size));
     }
 
