@@ -1,26 +1,28 @@
 package com.stellarideas.grooves.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Document(collection = "playlists")
-@CompoundIndex(name = "user_idx", def = "{'user.$id': 1}")
 public class Playlist {
 
     @Id
     private String id;
 
+    @NotBlank
+    @Size(min = 1, max = 100)
     private String name;
 
     @JsonIgnore
-    @DBRef
-    private User user;
+    @Indexed
+    private String userId;
 
     private List<String> trackIds = new ArrayList<>();
 
@@ -33,8 +35,8 @@ public class Playlist {
     public void setName(String name) { this.name = name; }
 
     @JsonIgnore
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
     public List<String> getTrackIds() { return trackIds; }
     public void setTrackIds(List<String> trackIds) { this.trackIds = trackIds; }

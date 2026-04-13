@@ -82,7 +82,7 @@ public class WebSecurityConfig {
                 csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .csrfTokenRequestHandler(requestHandler)
-                    .ignoringRequestMatchers("/api/auth/**"); // stateless JWT auth endpoints don't need CSRF
+                    .ignoringRequestMatchers("/api/v1/auth/**"); // stateless JWT auth endpoints don't need CSRF
             })
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .headers(headers -> headers
@@ -94,7 +94,7 @@ public class WebSecurityConfig {
                 // All application inline styles have been moved to external CSS.
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
                     "default-src 'self'; "
-                    + "script-src 'self' https://cdn.jsdelivr.net; "
+                    + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                     + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
                     + "font-src 'self' https://fonts.gstatic.com; "
                     + "img-src 'self' data:; "
@@ -105,8 +105,9 @@ public class WebSecurityConfig {
                 ))
             )
             .authorizeHttpRequests(auth ->
-                auth.requestMatchers("/api/auth/**").permitAll()
+                auth.requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/login", "/signup", "/css/**", "/js/**", "/images/**", "/favicon.ico", "/actuator/health").permitAll()
+                    .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
                     .anyRequest().authenticated()
             )
             .formLogin(form -> form

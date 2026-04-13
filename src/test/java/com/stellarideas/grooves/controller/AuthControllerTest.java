@@ -4,10 +4,14 @@ import com.stellarideas.grooves.dto.LoginRequest;
 import com.stellarideas.grooves.dto.SignupRequest;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
+import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,7 +22,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.when;
 
 class AuthControllerTest {
@@ -28,6 +33,8 @@ class AuthControllerTest {
     private AuthenticationManager authenticationManager;
     private PasswordEncoder passwordEncoder;
     private JwtUtils jwtUtils;
+    private LoginAttemptService loginAttemptService;
+    private AuditService auditService;
 
     @BeforeEach
     void setUp() {
@@ -35,7 +42,14 @@ class AuthControllerTest {
         authenticationManager = mock(AuthenticationManager.class);
         passwordEncoder = mock(PasswordEncoder.class);
         jwtUtils = mock(JwtUtils.class);
-        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils);
+        loginAttemptService = mock(LoginAttemptService.class);
+        auditService = mock(AuditService.class);
+
+        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+        messageSource.setBasename("messages");
+
+        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils,
+                messageSource, loginAttemptService, auditService);
     }
 
     private SignupRequest signupRequest(String username, String email, String password) {
@@ -86,7 +100,62 @@ class AuthControllerTest {
     }
 
     @Test
+    void signinRejectsLockedAccount() {
+        when(loginAttemptService.isLockedOut("lockeduser")).thenReturn(true);
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("lockeduser");
+        loginRequest.setPassword("password123");
+
+        ResponseEntity<?> response = controller.authenticateUser(loginRequest);
+
+        assertEquals(403, response.getStatusCode().value());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) response.getBody();
+        assertTrue(body.get("error").toString().contains("locked"));
+    }
+
+    @Test
+    void signinRecordsFailedAttempt() {
+        when(loginAttemptService.isLockedOut("baduser")).thenReturn(false);
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("baduser");
+        loginRequest.setPassword("wrongpassword");
+
+        ResponseEntity<?> response = controller.authenticateUser(loginRequest);
+
+        assertEquals(401, response.getStatusCode().value());
+        verify(loginAttemptService).loginFailed("baduser");
+    }
+
+    @Test
+    void signinResetsAttemptsOnSuccess() {
+        when(loginAttemptService.isLockedOut("testuser")).thenReturn(false);
+
+        var userDetails = org.springframework.security.core.userdetails.User
+                .withUsername("testuser")
+                .password("irrelevant")
+                .authorities(List.of(new SimpleGrantedAuthority("ROLE_USER")))
+                .build();
+        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(jwtUtils.generateJwtToken(any())).thenReturn("mock-jwt-token");
+
+        LoginRequest loginRequest = new LoginRequest();
+        loginRequest.setUsername("testuser");
+        loginRequest.setPassword("password123");
+
+        controller.authenticateUser(loginRequest);
+
+        verify(loginAttemptService).loginSucceeded("testuser");
+    }
+
+    @Test
     void signinReturnsToken() {
+        when(loginAttemptService.isLockedOut("testuser")).thenReturn(false);
+
         var userDetails = org.springframework.security.core.userdetails.User
                 .withUsername("testuser")
                 .password("irrelevant")

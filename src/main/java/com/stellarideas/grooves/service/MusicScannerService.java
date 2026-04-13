@@ -1,22 +1,25 @@
 package com.stellarideas.grooves.service;
 
+import com.stellarideas.grooves.dto.ScanResult;
+import com.stellarideas.grooves.model.CoverArt;
 import com.stellarideas.grooves.model.Genre;
 import com.stellarideas.grooves.model.MusicFile;
 import com.stellarideas.grooves.model.User;
+import com.stellarideas.grooves.repository.CoverArtRepository;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
+import org.jaudiotagger.tag.images.Artwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Service
@@ -34,24 +37,32 @@ public class MusicScannerService {
 
     private final MusicCatalogService catalogService;
     private final MusicFileRepository repository;
+    private final CoverArtRepository coverArtRepository;
 
-    public MusicScannerService(MusicCatalogService catalogService, MusicFileRepository repository) {
+    public MusicScannerService(MusicCatalogService catalogService, MusicFileRepository repository,
+                               CoverArtRepository coverArtRepository) {
         this.catalogService = catalogService;
         this.repository = repository;
+        this.coverArtRepository = coverArtRepository;
     }
 
-    /**
-     * Scans a directory for supported audio files, extracts metadata, and saves
-     * them to the library for the given user.
-     *
-     * @return the number of files successfully imported
-     */
-    public int scanDirectory(User user, String directoryPath) throws Exception {
+    public ScanResult scanDirectory(User user, String directoryPath) throws Exception {
         Path root = Paths.get(directoryPath).normalize();
         int effectiveDepth = Math.min(maxDepth, HARD_MAX_DEPTH);
 
-        int saved = 0;
-        int skipped = 0;
+        Set<String> existingPaths = repository.findByUserId(user.getId()).stream()
+                .map(MusicFile::getFilePath)
+                .collect(Collectors.toSet());
+        Set<String> existingTitleArtist = repository.findByUserId(user.getId()).stream()
+                .filter(f -> f.getTitle() != null && !f.getTitle().isBlank()
+                        && f.getArtist() != null && !f.getArtist().isBlank())
+                .map(f -> f.getTitle() + "\0" + f.getArtist())
+                .collect(Collectors.toSet());
+
+        // Track which artist+album combos already have cover art
+        Set<String> coverArtKeys = new HashSet<>();
+
+        ScanResult result = new ScanResult();
         List<MusicFile> batch = new ArrayList<>(BATCH_SIZE);
 
         try (Stream<Path> walk = Files.walk(root, effectiveDepth)) {
@@ -66,9 +77,8 @@ public class MusicScannerService {
             while (it.hasNext()) {
                 Path path = it.next();
                 try {
-                    if (repository.existsByFilePathAndUser(path.toString(), user)) {
-                        logger.debug("Skipping duplicate path: '{}' already imported for user '{}'", path.getFileName(), user.getUsername());
-                        skipped++;
+                    if (existingPaths.contains(path.toString())) {
+                        result.incrementSkipped();
                         continue;
                     }
                     AudioFile f = AudioFileIO.read(path.toFile());
@@ -80,18 +90,28 @@ public class MusicScannerService {
                     String year   = safeGet(tag, FieldKey.YEAR);
 
                     if (!title.isBlank() && !artist.isBlank()
-                            && repository.existsByTitleAndArtistAndUser(title, artist, user)) {
-                        logger.debug("Skipping duplicate metadata: '{}' by '{}' already imported for user '{}'", title, artist, user.getUsername());
-                        skipped++;
+                            && existingTitleArtist.contains(title + "\0" + artist)) {
+                        result.incrementSkipped();
                         continue;
                     }
 
-                    // Only the first-listed genre is used for classification
                     Set<Genre> genres = catalogService.identifyGenres(artist);
                     Genre genre = genres.isEmpty() ? Genre.OTHER : genres.iterator().next();
 
-                    batch.add(MusicFile.builder()
-                            .user(user)
+                    // Extract cover art if available
+                    boolean hasCover = false;
+                    if (!artist.isBlank() && !album.isBlank()) {
+                        String artKey = artist.toLowerCase() + "\0" + album.toLowerCase();
+                        if (!coverArtKeys.contains(artKey)) {
+                            hasCover = extractCoverArt(tag, user.getId(), artist, album);
+                            if (hasCover) coverArtKeys.add(artKey);
+                        } else {
+                            hasCover = true; // already extracted for this album
+                        }
+                    }
+
+                    MusicFile musicFile = MusicFile.builder()
+                            .userId(user.getId())
                             .filePath(path.toString())
                             .fileName(path.getFileName().toString())
                             .artist(artist)
@@ -99,27 +119,60 @@ public class MusicScannerService {
                             .title(title)
                             .year(year)
                             .genre(genre)
-                            .build());
+                            .hasCoverArt(hasCover)
+                            .build();
+
+                    batch.add(musicFile);
+                    existingPaths.add(path.toString());
+                    if (!title.isBlank() && !artist.isBlank()) {
+                        existingTitleArtist.add(title + "\0" + artist);
+                    }
 
                     if (batch.size() >= BATCH_SIZE) {
                         repository.saveAll(batch);
-                        saved += batch.size();
+                        result.addSaved(batch.size());
                         batch.clear();
                     }
                 } catch (Exception e) {
                     logger.warn("Skipping file '{}': {}", path.getFileName(), e.getMessage());
-                    skipped++;
+                    result.addError(path.getFileName().toString(), e.getMessage());
                 }
             }
         }
 
         if (!batch.isEmpty()) {
             repository.saveAll(batch);
-            saved += batch.size();
+            result.addSaved(batch.size());
         }
 
-        logger.info("Scan complete for user '{}': {} saved, {} skipped", user.getUsername(), saved, skipped);
-        return saved;
+        logger.info("Scan complete for user '{}': {} saved, {} skipped, {} errors",
+                user.getUsername(), result.getSaved(), result.getSkipped(), result.getErrors());
+        return result;
+    }
+
+    private boolean extractCoverArt(Tag tag, String userId, String artist, String album) {
+        try {
+            if (tag == null) return false;
+            Artwork artwork = tag.getFirstArtwork();
+            if (artwork == null || artwork.getBinaryData() == null || artwork.getBinaryData().length == 0) {
+                return false;
+            }
+            // Check if we already have art for this album
+            if (coverArtRepository.findByUserIdAndArtistAndAlbum(userId, artist, album).isPresent()) {
+                return true;
+            }
+            CoverArt art = new CoverArt();
+            art.setUserId(userId);
+            art.setArtist(artist);
+            art.setAlbum(album);
+            art.setMimeType(artwork.getMimeType() != null ? artwork.getMimeType() : "image/jpeg");
+            art.setData(artwork.getBinaryData());
+            coverArtRepository.save(art);
+            return true;
+        } catch (Exception e) {
+            logger.debug("Failed to extract cover art: {}", e.getMessage());
+            return false;
+        }
     }
 
     private String safeGet(Tag tag, FieldKey key) {

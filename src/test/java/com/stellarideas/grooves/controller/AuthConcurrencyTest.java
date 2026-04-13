@@ -3,15 +3,17 @@ package com.stellarideas.grooves.controller;
 import com.stellarideas.grooves.dto.SignupRequest;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
+import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,18 +40,22 @@ class AuthConcurrencyTest {
         AuthenticationManager authenticationManager = mock(AuthenticationManager.class);
         PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
         JwtUtils jwtUtils = mock(JwtUtils.class);
-        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils);
+
+        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+        messageSource.setBasename("messages");
+
+        LoginAttemptService loginAttemptService = mock(LoginAttemptService.class);
+        AuditService auditService = mock(AuditService.class);
+        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils,
+                messageSource, loginAttemptService, auditService);
 
         when(passwordEncoder.encode(any())).thenReturn("encoded");
     }
 
     @Test
     void concurrentSignupsForSameUsernameShouldNotAllSucceed() throws Exception {
-        // Simulate a race: first call sees no duplicate, subsequent calls see the username taken.
-        // Use an atomic counter to flip the mock after the first check.
         AtomicInteger checkCount = new AtomicInteger(0);
         when(userRepository.existsByUsername("raceuser")).thenAnswer(invocation -> {
-            // First caller sees false (no duplicate), all others see true
             return checkCount.getAndIncrement() > 0;
         });
         when(userRepository.existsByEmail("race@test.com")).thenReturn(false);
@@ -61,7 +67,7 @@ class AuthConcurrencyTest {
 
         for (int i = 0; i < threadCount; i++) {
             futures.add(executor.submit(() -> {
-                latch.await(); // all threads start together
+                latch.await();
                 SignupRequest req = new SignupRequest();
                 req.setUsername("raceuser");
                 req.setEmail("race@test.com");
@@ -70,7 +76,7 @@ class AuthConcurrencyTest {
             }));
         }
 
-        latch.countDown(); // release all threads
+        latch.countDown();
 
         int successCount = 0;
         int failCount = 0;
@@ -84,7 +90,6 @@ class AuthConcurrencyTest {
         }
         executor.shutdown();
 
-        // At most one should succeed (the first one past the check)
         assertEquals(1, successCount, "Exactly one concurrent signup should succeed");
         assertEquals(threadCount - 1, failCount, "All other concurrent signups should be rejected");
     }

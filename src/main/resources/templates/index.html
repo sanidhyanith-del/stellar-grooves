@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +15,8 @@
                 <img th:src="@{/images/logo.png}" alt="Stellar Grooves Logo" class="logo-sm">
                 Stellar Grooves
             </a>
-            <div class="ms-auto">
+            <div class="ms-auto d-flex gap-3 align-items-center">
+                <a class="nav-link d-inline" th:href="@{/admin}" sec:authorize="hasRole('ADMIN')">Admin</a>
                 <a class="nav-link d-inline" href="/logout">Logout</a>
             </div>
         </div>
@@ -49,7 +50,7 @@
                 </div>
             </div>
             <div class="col-6 col-md">
-                <div class="card stat-card" id="statCardDupes">
+                <div class="card stat-card stat-clickable" id="statCardDupes" title="View duplicates">
                     <div class="stat-value" id="statDupes">0</div>
                     <div class="stat-label">Duplicated Songs</div>
                 </div>
@@ -57,7 +58,7 @@
         </div>
 
         <div class="row g-4">
-            <!-- Scan Panel -->
+            <!-- Scan Panel + Playlists + Queue -->
             <div class="col-12 col-lg-4">
                 <div class="card h-100">
                     <div class="card-header">Scan Directory</div>
@@ -74,20 +75,34 @@
                                 Start Scan
                             </button>
                         </form>
-                        <div id="scanStatus" class="mt-3"></div>
+                        <div id="scanStatus" class="mt-3" aria-live="polite" aria-atomic="true"></div>
 
-                        <hr class="my-3" class="hr-themed">
+                        <hr class="my-3">
 
                         <button class="btn btn-outline-danger w-100 d-none" id="clearBtn">
                             Clear Library
                         </button>
 
-                        <hr class="my-3" class="hr-themed">
+                        <hr class="my-3">
 
+                        <!-- Queue section -->
+                        <div id="queueSection">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="section-label">UP NEXT</span>
+                                <button class="btn-icon-sm" id="clearQueueBtn" title="Clear queue" aria-label="Clear queue" style="display:none;">&times;</button>
+                            </div>
+                            <ul id="queueList" class="playlist-list">
+                                <li class="playlist-empty-hint">Queue is empty</li>
+                            </ul>
+                        </div>
+
+                        <hr class="my-3">
+
+                        <!-- Playlists section -->
                         <div id="playlistSection">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span class="section-label">MY PLAYLISTS</span>
-                                <button class="btn-icon-sm" id="showNewPlaylistBtn" title="New playlist">+</button>
+                                <button class="btn-icon-sm" id="showNewPlaylistBtn" title="New playlist" aria-label="Create new playlist">+</button>
                             </div>
                             <div id="newPlaylistForm" class="d-none mb-2">
                                 <div class="input-group input-group-sm">
@@ -116,7 +131,13 @@
                             </ol>
                         </nav>
                         <div class="d-flex gap-2 flex-wrap" id="trackFilters">
-                            <select id="genreFilter" class="form-select form-select-sm" class="filter-select">
+                            <select id="artistFilter" class="form-select form-select-sm" aria-label="Filter by artist">
+                                <option value="">All Artists</option>
+                            </select>
+                            <select id="albumFilter" class="form-select form-select-sm" aria-label="Filter by album">
+                                <option value="">All Albums</option>
+                            </select>
+                            <select id="genreFilter" class="form-select form-select-sm" aria-label="Filter by genre">
                                 <option value="">All Genres</option>
                                 <option value="CLASSIC_ROCK">Classic Rock</option>
                                 <option value="HARD_ROCK">Hard Rock</option>
@@ -126,21 +147,27 @@
                                 <option value="OTHER">Other</option>
                             </select>
                             <input type="search" id="searchInput" class="form-control form-control-sm"
-                                   placeholder="Filter title, artist, album…" class="filter-input">
+                                   placeholder="Search…" aria-label="Search tracks">
                         </div>
+                    </div>
+
+                    <!-- Bulk action bar (hidden until selection) -->
+                    <div id="bulkBar" class="d-none px-3 py-2 d-flex align-items-center gap-2" style="background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);">
+                        <input type="checkbox" id="selectAll" aria-label="Select all tracks">
+                        <span id="bulkCount" class="small" style="color: var(--text-secondary);">0 selected</span>
+                        <button class="btn btn-sm btn-outline-danger" id="bulkDeleteBtn">Delete Selected</button>
+                        <button class="btn btn-sm btn-outline-primary" id="bulkPlaylistBtn">Add to Playlist</button>
                     </div>
 
                     <!-- Artists view -->
                     <div id="viewArtists" class="d-none" role="region" aria-label="Artists">
                         <div class="table-responsive">
                             <table class="table" aria-label="Artists list">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Artist</th>
-                                        <th scope="col" class="text-end hide-xs">Albums</th>
-                                        <th scope="col" class="text-end">Tracks</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr>
+                                    <th scope="col">Artist</th>
+                                    <th scope="col" class="text-end hide-xs">Albums</th>
+                                    <th scope="col" class="text-end">Tracks</th>
+                                </tr></thead>
                                 <tbody id="artistsBody"></tbody>
                             </table>
                         </div>
@@ -148,15 +175,20 @@
 
                     <!-- Albums view -->
                     <div id="viewAlbums" class="d-none" role="region" aria-label="Albums">
-                        <div class="table-responsive">
+                        <div class="d-flex justify-content-end px-3 pt-2 pb-1">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Albums view mode">
+                                <button type="button" class="btn btn-outline-secondary active" id="albumViewGrid" title="Grid view">&#x2637;</button>
+                                <button type="button" class="btn btn-outline-secondary" id="albumViewList" title="List view">&#x2630;</button>
+                            </div>
+                        </div>
+                        <div id="albumsGrid" class="album-grid p-3"></div>
+                        <div class="table-responsive d-none" id="albumsTableWrap">
                             <table class="table" aria-label="Albums list">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Album</th>
-                                        <th scope="col" class="hide-xs">Artist</th>
-                                        <th scope="col" class="text-end">Tracks</th>
-                                    </tr>
-                                </thead>
+                                <thead><tr>
+                                    <th scope="col">Album</th>
+                                    <th scope="col" class="hide-xs">Artist</th>
+                                    <th scope="col" class="text-end">Tracks</th>
+                                </tr></thead>
                                 <tbody id="albumsBody"></tbody>
                             </table>
                         </div>
@@ -164,51 +196,74 @@
 
                     <!-- Tracks view -->
                     <div id="viewTracks" class="d-none" role="region" aria-label="Tracks">
-                        <div class="table-responsive">
+                        <div class="table-responsive virtual-scroll-container" id="tracksScrollContainer">
                             <table class="table table-collapse-sm" id="musicTable" aria-label="Music tracks">
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="col-play"><span class="visually-hidden">Play</span></th>
-                                        <th scope="col" class="col-sortable" data-col="title">Title <span class="sort-icon"></span></th>
-                                        <th scope="col" class="col-sortable" data-col="artist">Artist <span class="sort-icon"></span></th>
-                                        <th scope="col" class="col-sortable hide-xs" data-col="album">Album <span class="sort-icon"></span></th>
-                                        <th scope="col" class="col-sortable" data-col="genre">Genre <span class="sort-icon"></span></th>
-                                        <th scope="col" class="col-sortable hide-xs" data-col="year">Decade <span class="sort-icon"></span></th>
-                                        <th scope="col" class="hide-xs col-actions"><span class="visually-hidden">Actions</span></th>
-                                    </tr>
-                                </thead>
+                                <thead><tr>
+                                    <th scope="col" class="col-check"><input type="checkbox" id="selectAllHead" aria-label="Select all"></th>
+                                    <th scope="col" class="col-play"><span class="visually-hidden">Play</span></th>
+                                    <th scope="col" class="col-sortable" data-col="title">Title <span class="sort-icon"></span></th>
+                                    <th scope="col" class="col-sortable" data-col="artist">Artist <span class="sort-icon"></span></th>
+                                    <th scope="col" class="col-sortable hide-xs" data-col="album">Album <span class="sort-icon"></span></th>
+                                    <th scope="col" class="col-sortable" data-col="genre">Genre <span class="sort-icon"></span></th>
+                                    <th scope="col" class="col-sortable hide-xs" data-col="rating">Rating <span class="sort-icon"></span></th>
+                                    <th scope="col" class="col-sortable hide-xs" data-col="year">Decade <span class="sort-icon"></span></th>
+                                    <th scope="col" class="hide-xs col-actions"><span class="visually-hidden">Actions</span></th>
+                                </tr></thead>
                                 <tbody id="musicTableBody"></tbody>
                             </table>
                         </div>
+                        <div id="trackCount" class="text-end small px-3 py-1" style="color: var(--text-muted);" aria-live="polite"></div>
+                    </div>
+
+                    <!-- Duplicates view -->
+                    <div id="viewDuplicates" class="d-none" role="region" aria-label="Duplicate tracks">
+                        <div id="duplicatesContent" class="p-3"></div>
                     </div>
 
                     <!-- Playlist view -->
                     <div id="viewPlaylist" class="d-none" role="region" aria-label="Playlist tracks">
+                        <div class="d-flex justify-content-between align-items-center gap-2 px-3 pt-2 flex-wrap">
+                            <div class="d-flex gap-2 align-items-center">
+                                <label class="form-label mb-0 small" style="color: var(--text-muted); white-space: nowrap;">Sort by:</label>
+                                <select id="playlistSort" class="form-select form-select-sm" style="max-width: 160px;" aria-label="Sort playlist">
+                                    <option value="custom">Custom Order</option>
+                                    <option value="title">Title</option>
+                                    <option value="artist">Artist</option>
+                                    <option value="album">Album</option>
+                                    <option value="genre">Genre</option>
+                                    <option value="rating">Rating (High to Low)</option>
+                                    <option value="year">Year (Newest)</option>
+                                </select>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" id="exportJsonBtn" aria-label="Export as JSON">Export JSON</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="exportM3uBtn" aria-label="Export as M3U">Export M3U</button>
+                            </div>
+                        </div>
                         <div class="table-responsive">
                             <table class="table" aria-label="Playlist tracks">
-                                <thead>
-                                    <tr>
-                                        <th scope="col" class="col-play"><span class="visually-hidden">Play</span></th>
-                                        <th scope="col">Title</th>
-                                        <th scope="col">Artist</th>
-                                        <th scope="col" class="hide-xs">Album</th>
-                                        <th scope="col">Genre</th>
-                                        <th scope="col" class="hide-xs">Decade</th>
-                                        <th scope="col" class="hide-xs col-actions"><span class="visually-hidden">Actions</span></th>
-                                    </tr>
-                                </thead>
+                                <thead><tr>
+                                    <th scope="col" class="col-play"><span class="visually-hidden">Play</span></th>
+                                    <th scope="col">Title</th>
+                                    <th scope="col">Artist</th>
+                                    <th scope="col" class="hide-xs">Album</th>
+                                    <th scope="col">Genre</th>
+                                    <th scope="col" class="hide-xs">Rating</th>
+                                    <th scope="col" class="hide-xs">Decade</th>
+                                    <th scope="col" class="hide-xs col-actions"><span class="visually-hidden">Actions</span></th>
+                                </tr></thead>
                                 <tbody id="playlistTracksBody"></tbody>
                             </table>
                         </div>
                         <div id="playlistEmptyState" class="empty-state d-none">
-                            <div class="empty-state-icon">🎵</div>
+                            <div class="empty-state-icon">&#x1F3B5;</div>
                             <p>No tracks in this playlist yet.<br>Browse your library and click <strong>+</strong> on any track to add it.</p>
                         </div>
                     </div>
 
                     <!-- Empty state -->
                     <div id="emptyState" class="empty-state">
-                        <div class="empty-state-icon">🎵</div>
+                        <div class="empty-state-icon">&#x1F3B5;</div>
                         <p>No music scanned yet.<br>Enter a directory path and click <strong>Start Scan</strong>.</p>
                     </div>
                 </div>
@@ -222,7 +277,7 @@
             <div class="modal-content sg-modal">
                 <div class="modal-header sg-modal-header">
                     <h6 class="modal-title">Add to Playlist</h6>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p id="addToPlaylistTrackName" class="small mb-2 text-secondary-themed"></p>
@@ -237,11 +292,14 @@
     <!-- Audio Player Bar -->
     <div id="playerBar" class="player-bar d-none" role="region" aria-label="Audio player">
         <div class="player-info">
-            <div id="playerTitle" class="player-title" aria-live="polite"></div>
-            <div id="playerArtist" class="player-artist"></div>
+            <img id="playerArt" class="player-art d-none" alt="" width="40" height="40">
+            <div>
+                <div id="playerTitle" class="player-title" aria-live="polite"></div>
+                <div id="playerArtist" class="player-artist"></div>
+            </div>
         </div>
         <div class="player-controls">
-            <button id="playerShuffle" class="btn-player-sm" title="Shuffle" aria-label="Toggle shuffle">&#x1F500;</button>
+            <button id="playerShuffle" class="btn-player-sm" title="Shuffle" aria-label="Toggle shuffle" aria-pressed="false">&#x1F500;</button>
             <button id="playerPlayPause" class="btn-player" title="Play / Pause" aria-label="Play or pause">&#x25B6;</button>
             <span id="playerCurrentTime" class="player-time" aria-label="Current time">0:00</span>
             <input type="range" id="playerSeek" class="player-seek" min="0" max="100" value="0" step="0.1" aria-label="Seek position">

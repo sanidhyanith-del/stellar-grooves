@@ -43,7 +43,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !path.startsWith("/api/auth/");
+        return !path.startsWith("/api/v1/auth/");
     }
 
     @Override
@@ -65,9 +65,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         int count = counter.count.incrementAndGet();
 
         if (count > maxRequests) {
+            long elapsed = now - counter.windowStart;
+            long retryAfterSeconds = Math.max(1, (windowMs - elapsed) / 1000);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\"}");
+            response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
+            response.getWriter().write("{\"error\":\"Too many requests. Please try again later.\",\"retryAfter\":" + retryAfterSeconds + "}");
             return;
         }
 
@@ -80,7 +83,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (trustedProxies.isEmpty() || trustedProxies.contains(remoteAddr)) {
                 String forwarded = request.getHeader("X-Forwarded-For");
                 if (forwarded != null && !forwarded.isBlank()) {
-                    return forwarded.split(",")[0].trim();
+                    // Walk from the rightmost IP leftward, skipping trusted proxies.
+                    // The rightmost non-proxy IP is the real client because proxies
+                    // append (not prepend), so leftmost entries are attacker-controlled.
+                    String[] ips = forwarded.split(",");
+                    for (int i = ips.length - 1; i >= 0; i--) {
+                        String ip = ips[i].trim();
+                        if (!trustedProxies.contains(ip)) {
+                            return ip;
+                        }
+                    }
                 }
             }
         }

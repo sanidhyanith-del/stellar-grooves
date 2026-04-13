@@ -11,6 +11,8 @@ public class MusicFileDTO {
     private String title;
     private String year;
     private String genre;
+    private int rating;
+    private boolean hasCoverArt;
 
     public MusicFileDTO() {}
 
@@ -23,6 +25,8 @@ public class MusicFileDTO {
         dto.title = file.getTitle();
         dto.year = file.getYear();
         dto.genre = file.getGenre() != null ? file.getGenre().name() : null;
+        dto.rating = file.getRating();
+        dto.hasCoverArt = file.isHasCoverArt();
         return dto;
     }
 
@@ -46,4 +50,10 @@ public class MusicFileDTO {
 
     public String getGenre() { return genre; }
     public void setGenre(String genre) { this.genre = genre; }
+
+    public int getRating() { return rating; }
+    public void setRating(int rating) { this.rating = rating; }
+
+    public boolean isHasCoverArt() { return hasCoverArt; }
+    public void setHasCoverArt(boolean hasCoverArt) { this.hasCoverArt = hasCoverArt; }
 }

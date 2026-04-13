@@ -21,7 +21,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
     msg.className = 'alert d-none';
 
     try {
-        const response = await fetch('/api/auth/signup', {
+        const response = await fetch('/api/v1/auth/signup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
@@ -38,6 +38,11 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
             msg.appendChild(a);
             msg.classList.remove('d-none');
             form.reset();
+        } else if (response.status === 429) {
+            const retryAfter = data.retryAfter || parseInt(response.headers.get('Retry-After')) || 60;
+            msg.className = 'alert alert-warning';
+            msg.classList.remove('d-none');
+            startRetryCountdown(msg, btn, retryAfter);
         } else {
             msg.className = 'alert alert-danger';
             // Use textContent to prevent XSS from server error messages
@@ -53,6 +58,23 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
         spinner.classList.add('d-none');
     }
 });
+
+// Rate limit countdown
+function startRetryCountdown(msgEl, submitBtn, seconds) {
+    submitBtn.disabled = true;
+    let remaining = seconds;
+    function tick() {
+        msgEl.textContent = 'Too many attempts. Please wait ' + remaining + ' second' + (remaining !== 1 ? 's' : '') + ' before trying again.';
+        if (remaining <= 0) {
+            msgEl.className = 'alert d-none';
+            submitBtn.disabled = false;
+            return;
+        }
+        remaining--;
+        setTimeout(tick, 1000);
+    }
+    tick();
+}
 
 // Clear validation state on input
 document.querySelectorAll('.form-control').forEach(input => {

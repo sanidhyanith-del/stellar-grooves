@@ -36,8 +36,7 @@ public class AdminBootstrap implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        boolean adminExists = userRepository.findAll().stream()
-                .anyMatch(u -> u.getRoles() != null && u.getRoles().contains(Role.ROLE_ADMIN));
+        boolean adminExists = userRepository.existsByRolesContaining(Role.ROLE_ADMIN);
 
         if (adminExists) {
             return;

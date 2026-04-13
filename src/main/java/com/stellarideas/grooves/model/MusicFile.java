@@ -5,14 +5,15 @@ import jakarta.validation.constraints.Size;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.CompoundIndexes;
-import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "music_files")
 @CompoundIndexes({
-    @CompoundIndex(name = "user_genre", def = "{'user.$id': 1, 'genre': 1}"),
-    @CompoundIndex(name = "user_filepath", def = "{'user.$id': 1, 'filePath': 1}", unique = true),
-    @CompoundIndex(name = "user_title_artist", def = "{'user.$id': 1, 'title': 1, 'artist': 1}")
+    @CompoundIndex(name = "user_genre", def = "{'userId': 1, 'genre': 1}"),
+    @CompoundIndex(name = "user_filepath", def = "{'userId': 1, 'filePath': 1}", unique = true),
+    @CompoundIndex(name = "user_title_artist", def = "{'userId': 1, 'title': 1, 'artist': 1}"),
+    @CompoundIndex(name = "user_rating", def = "{'userId': 1, 'rating': -1}")
 })
 public class MusicFile {
     @Id
@@ -31,16 +32,20 @@ public class MusicFile {
     @Size(max = 10)
     private String year;
 
+    @Indexed
     private Genre genre;
 
     @JsonIgnore
-    @DBRef
-    private User user;
+    private String userId;
+
+    private int rating; // 0-5, 0 = unrated
+
+    private boolean hasCoverArt;
 
     public MusicFile() {}
 
     public MusicFile(String id, String filePath, String fileName, String artist, String album,
-                     String title, String year, Genre genre, User user) {
+                     String title, String year, Genre genre, String userId, int rating, boolean hasCoverArt) {
         this.id = id;
         this.filePath = filePath;
         this.fileName = fileName;
@@ -49,7 +54,9 @@ public class MusicFile {
         this.title = title;
         this.year = year;
         this.genre = genre;
-        this.user = user;
+        this.userId = userId;
+        this.rating = rating;
+        this.hasCoverArt = hasCoverArt;
     }
 
     public String getId() { return id; }
@@ -78,8 +85,14 @@ public class MusicFile {
     public void setGenre(Genre genre) { this.genre = genre; }
 
     @JsonIgnore
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+
+    public int getRating() { return rating; }
+    public void setRating(int rating) { this.rating = Math.max(0, Math.min(5, rating)); }
+
+    public boolean isHasCoverArt() { return hasCoverArt; }
+    public void setHasCoverArt(boolean hasCoverArt) { this.hasCoverArt = hasCoverArt; }
 
     public static MusicFileBuilder builder() {
         return new MusicFileBuilder();
@@ -94,7 +107,9 @@ public class MusicFile {
         private String title;
         private String year;
         private Genre genre;
-        private User user;
+        private String userId;
+        private int rating;
+        private boolean hasCoverArt;
 
         MusicFileBuilder() {}
 
@@ -106,10 +121,12 @@ public class MusicFile {
         public MusicFileBuilder title(String title) { this.title = title; return this; }
         public MusicFileBuilder year(String year) { this.year = year; return this; }
         public MusicFileBuilder genre(Genre genre) { this.genre = genre; return this; }
-        public MusicFileBuilder user(User user) { this.user = user; return this; }
+        public MusicFileBuilder userId(String userId) { this.userId = userId; return this; }
+        public MusicFileBuilder rating(int rating) { this.rating = rating; return this; }
+        public MusicFileBuilder hasCoverArt(boolean hasCoverArt) { this.hasCoverArt = hasCoverArt; return this; }
 
         public MusicFile build() {
-            return new MusicFile(id, filePath, fileName, artist, album, title, year, genre, user);
+            return new MusicFile(id, filePath, fileName, artist, album, title, year, genre, userId, rating, hasCoverArt);
         }
     }
 }

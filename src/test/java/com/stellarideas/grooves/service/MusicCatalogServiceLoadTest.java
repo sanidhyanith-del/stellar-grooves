@@ -1,21 +1,32 @@
 package com.stellarideas.grooves.service;
 
 import com.stellarideas.grooves.model.Genre;
+import com.stellarideas.grooves.repository.GenreCorrectionRepository;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for MusicCatalogService catalog loading edge cases.
  */
 class MusicCatalogServiceLoadTest {
 
+    private MusicCatalogService createService() {
+        GenreCorrectionRepository repo = mock(GenreCorrectionRepository.class);
+        when(repo.findByArtistLower(anyString())).thenReturn(Optional.empty());
+        return new MusicCatalogService(repo);
+    }
+
     @Test
     void serviceReturnsEmptyGenresWhenCatalogFailsToLoad() throws Exception {
-        MusicCatalogService service = new MusicCatalogService();
+        MusicCatalogService service = createService();
 
         // Point to a nonexistent custom catalog path to trigger load failure
         Field pathField = MusicCatalogService.class.getDeclaredField("customCatalogPath");
@@ -35,7 +46,7 @@ class MusicCatalogServiceLoadTest {
 
     @Test
     void serviceLoadsDefaultCatalogSuccessfully() throws Exception {
-        MusicCatalogService service = new MusicCatalogService();
+        MusicCatalogService service = createService();
 
         Field pathField = MusicCatalogService.class.getDeclaredField("customCatalogPath");
         pathField.setAccessible(true);

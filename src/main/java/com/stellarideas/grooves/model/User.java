@@ -8,6 +8,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.Instant;
+import java.util.HashSet;
 import java.util.Set;
 
 @Document(collection = "users")
@@ -30,16 +32,20 @@ public class User {
 
     private String musicDirectory;
 
-    private Set<Role> roles;
+    private Set<Role> roles = new HashSet<>();
 
     private boolean accountLocked = false;
     private boolean enabled = true;
+
+    private int failedLoginAttempts = 0;
+    private Instant lockoutExpiry;
 
     public User() {
     }
 
     public User(String id, String username, String password, String email, String musicDirectory,
-                Set<Role> roles, boolean accountLocked, boolean enabled) {
+                Set<Role> roles, boolean accountLocked, boolean enabled,
+                int failedLoginAttempts, Instant lockoutExpiry) {
         this.id = id;
         this.username = username;
         this.password = password;
@@ -48,6 +54,8 @@ public class User {
         this.roles = roles;
         this.accountLocked = accountLocked;
         this.enabled = enabled;
+        this.failedLoginAttempts = failedLoginAttempts;
+        this.lockoutExpiry = lockoutExpiry;
     }
 
     public String getId() {
@@ -115,6 +123,22 @@ public class User {
         this.enabled = enabled;
     }
 
+    public int getFailedLoginAttempts() {
+        return failedLoginAttempts;
+    }
+
+    public void setFailedLoginAttempts(int failedLoginAttempts) {
+        this.failedLoginAttempts = failedLoginAttempts;
+    }
+
+    public Instant getLockoutExpiry() {
+        return lockoutExpiry;
+    }
+
+    public void setLockoutExpiry(Instant lockoutExpiry) {
+        this.lockoutExpiry = lockoutExpiry;
+    }
+
     public static UserBuilder builder() {
         return new UserBuilder();
     }
@@ -128,6 +152,8 @@ public class User {
         private Set<Role> roles;
         private boolean accountLocked = false;
         private boolean enabled = true;
+        private int failedLoginAttempts = 0;
+        private Instant lockoutExpiry;
 
         UserBuilder() {
         }
@@ -172,8 +198,19 @@ public class User {
             return this;
         }
 
+        public UserBuilder failedLoginAttempts(int failedLoginAttempts) {
+            this.failedLoginAttempts = failedLoginAttempts;
+            return this;
+        }
+
+        public UserBuilder lockoutExpiry(Instant lockoutExpiry) {
+            this.lockoutExpiry = lockoutExpiry;
+            return this;
+        }
+
         public User build() {
-            return new User(id, username, password, email, musicDirectory, roles, accountLocked, enabled);
+            return new User(id, username, password, email, musicDirectory, roles, accountLocked, enabled,
+                    failedLoginAttempts, lockoutExpiry);
         }
     }
 }
