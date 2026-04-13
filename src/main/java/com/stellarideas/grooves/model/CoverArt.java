@@ -1,0 +1,44 @@
+package com.stellarideas.grooves.model;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+/**
+ * Stores album cover art as binary data in MongoDB.
+ * Keyed by a hash of artist+album so duplicate art is stored only once per user.
+ */
+@Document(collection = "cover_art")
+public class CoverArt {
+
+    @Id
+    private String id;
+
+    @Indexed
+    private String userId;
+
+    private String artist;
+    private String album;
+    private String mimeType;
+    private byte[] data;
+
+    public CoverArt() {}
+
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
+
+    public String getArtist() { return artist; }
+    public void setArtist(String artist) { this.artist = artist; }
+
+    public String getAlbum() { return album; }
+    public void setAlbum(String album) { this.album = album; }
+
+    public String getMimeType() { return mimeType; }
+    public void setMimeType(String mimeType) { this.mimeType = mimeType; }
+
+    public byte[] getData() { return data; }
+    public void setData(byte[] data) { this.data = data; }
+}

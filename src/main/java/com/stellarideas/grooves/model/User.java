@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Document(collection = "users")
@@ -30,7 +31,7 @@ public class User {
 
     private String musicDirectory;
 
-    private Set<Role> roles;
+    private Set<Role> roles = new HashSet<>();
 
     private boolean accountLocked = false;
     private boolean enabled = true;

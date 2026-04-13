@@ -1,0 +1,164 @@
+package com.stellarideas.grooves.controller;
+
+import com.stellarideas.grooves.model.MusicFile;
+import com.stellarideas.grooves.model.User;
+import com.stellarideas.grooves.repository.CoverArtRepository;
+import com.stellarideas.grooves.repository.MusicFileRepository;
+import com.stellarideas.grooves.repository.PlaylistRepository;
+import com.stellarideas.grooves.service.MusicScannerService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.context.support.ResourceBundleMessageSource;
+import org.springframework.core.io.support.ResourceRegion;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRange;
+import org.springframework.http.ResponseEntity;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class StreamingTest {
+
+    private LibraryController controller;
+    private MusicFileRepository musicFileRepository;
+    private User testUser;
+
+    @TempDir
+    Path tempDir;
+
+    @BeforeEach
+    void setUp() {
+        musicFileRepository = mock(MusicFileRepository.class);
+        PlaylistRepository playlistRepository = mock(PlaylistRepository.class);
+        MusicScannerService scannerService = mock(MusicScannerService.class);
+
+        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+        messageSource.setBasename("messages");
+
+        CoverArtRepository coverArtRepository = mock(CoverArtRepository.class);
+        controller = new LibraryController(scannerService, musicFileRepository, playlistRepository, coverArtRepository, messageSource);
+
+        testUser = new User();
+        testUser.setId("user1");
+        testUser.setUsername("testuser");
+    }
+
+    private Path createTempAudioFile(String name, int sizeBytes) throws IOException {
+        Path file = tempDir.resolve(name);
+        Files.write(file, new byte[sizeBytes]);
+        return file;
+    }
+
+    @Test
+    void streamFileReturnsFullContent() throws IOException {
+        Path audioPath = createTempAudioFile("song.mp3", 1024);
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("song.mp3").filePath(audioPath.toString()).build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", new HttpHeaders());
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1024, response.getBody().getCount());
+        assertEquals("audio/mpeg", response.getHeaders().getContentType().toString());
+    }
+
+    @Test
+    void streamFileReturnsPartialContentForRangeRequest() throws IOException {
+        Path audioPath = createTempAudioFile("song.mp3", 2048);
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("song.mp3").filePath(audioPath.toString()).build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setRange(java.util.List.of(HttpRange.createByteRange(0, 511)));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", headers);
+
+        assertEquals(206, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(512, response.getBody().getCount());
+    }
+
+    @Test
+    void streamFileReturns404ForMissingDatabaseEntry() throws IOException {
+        when(musicFileRepository.findByIdAndUserId("missing", "user1")).thenReturn(Optional.empty());
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "missing", new HttpHeaders());
+
+        assertEquals(404, response.getStatusCode().value());
+    }
+
+    @Test
+    void streamFileReturns404WhenFileNotOnDisk() throws IOException {
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("gone.mp3").filePath("/nonexistent/path/gone.mp3").build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", new HttpHeaders());
+
+        assertEquals(404, response.getStatusCode().value());
+    }
+
+    @Test
+    void streamFileReturns404WhenFileNotReadable() throws IOException {
+        Path audioPath = createTempAudioFile("locked.mp3", 512);
+        audioPath.toFile().setReadable(false);
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("locked.mp3").filePath(audioPath.toString()).build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", new HttpHeaders());
+
+        assertEquals(404, response.getStatusCode().value());
+        // Restore so @TempDir cleanup succeeds
+        audioPath.toFile().setReadable(true);
+    }
+
+    @Test
+    void streamFlacFileReturnsCorrectMediaType() throws IOException {
+        Path audioPath = createTempAudioFile("song.flac", 512);
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("song.flac").filePath(audioPath.toString()).build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", new HttpHeaders());
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("audio/flac", response.getHeaders().getContentType().toString());
+    }
+
+    @Test
+    void streamM4aFileReturnsCorrectMediaType() throws IOException {
+        Path audioPath = createTempAudioFile("song.m4a", 512);
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("song.m4a").filePath(audioPath.toString()).build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", new HttpHeaders());
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("audio/mp4", response.getHeaders().getContentType().toString());
+    }
+
+    @Test
+    void streamUnknownExtReturnsOctetStream() throws IOException {
+        Path audioPath = createTempAudioFile("song.wav", 512);
+        MusicFile file = MusicFile.builder()
+                .id("f1").fileName("song.wav").filePath(audioPath.toString()).build();
+        when(musicFileRepository.findByIdAndUserId("f1", "user1")).thenReturn(Optional.of(file));
+
+        ResponseEntity<ResourceRegion> response = controller.streamFile(testUser, "f1", new HttpHeaders());
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals("application/octet-stream", response.getHeaders().getContentType().toString());
+    }
+}

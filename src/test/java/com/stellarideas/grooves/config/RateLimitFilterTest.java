@@ -90,20 +90,20 @@ class RateLimitFilterTest {
 
     @Test
     void skipsNonAuthEndpoints() throws Exception {
-        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/library/files");
+        MockHttpServletRequest req = new MockHttpServletRequest("GET", "/api/v1/library/files");
         req.setRemoteAddr("10.0.0.1");
         assertTrue(filter.shouldNotFilter(req));
     }
 
     @Test
     void filtersAuthEndpoints() throws Exception {
-        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/auth/signin");
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/signin");
         req.setRemoteAddr("10.0.0.1");
         assertFalse(filter.shouldNotFilter(req));
     }
 
     private MockHttpServletRequest authRequest(String remoteAddr) {
-        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/auth/signin");
+        MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/v1/auth/signin");
         req.setRemoteAddr(remoteAddr);
         return req;
     }

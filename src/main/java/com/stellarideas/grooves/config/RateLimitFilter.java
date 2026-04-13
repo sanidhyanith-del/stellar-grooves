@@ -43,7 +43,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return !path.startsWith("/api/auth/");
+        return !path.startsWith("/api/v1/auth/");
     }
 
     @Override
@@ -80,7 +80,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (trustedProxies.isEmpty() || trustedProxies.contains(remoteAddr)) {
                 String forwarded = request.getHeader("X-Forwarded-For");
                 if (forwarded != null && !forwarded.isBlank()) {
-                    return forwarded.split(",")[0].trim();
+                    // Walk from the rightmost IP leftward, skipping trusted proxies.
+                    // The rightmost non-proxy IP is the real client because proxies
+                    // append (not prepend), so leftmost entries are attacker-controlled.
+                    String[] ips = forwarded.split(",");
+                    for (int i = ips.length - 1; i >= 0; i--) {
+                        String ip = ips[i].trim();
+                        if (!trustedProxies.contains(ip)) {
+                            return ip;
+                        }
+                    }
                 }
             }
         }

@@ -6,6 +6,7 @@ import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.support.ResourceBundleMessageSource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -35,7 +36,11 @@ class AuthControllerTest {
         authenticationManager = mock(AuthenticationManager.class);
         passwordEncoder = mock(PasswordEncoder.class);
         jwtUtils = mock(JwtUtils.class);
-        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils);
+
+        ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
+        messageSource.setBasename("messages");
+
+        controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils, messageSource);
     }
 
     private SignupRequest signupRequest(String username, String email, String password) {
