@@ -1,5 +1,6 @@
 package com.stellarideas.grooves.service;
 
+import com.stellarideas.grooves.dto.LibraryBackup;
 import com.stellarideas.grooves.dto.MusicFileDTO;
 import com.stellarideas.grooves.model.*;
 import com.stellarideas.grooves.repository.CoverArtRepository;
@@ -15,10 +16,10 @@ import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.stellarideas.grooves.config.PaginationDefaults.*;
+
 @Service
 public class LibraryService {
-
-    private static final int MAX_PAGE_SIZE = 200;
 
     private final MusicFileRepository musicFileRepository;
     private final PlaylistRepository playlistRepository;
@@ -39,7 +40,7 @@ public class LibraryService {
     }
 
     public Page<MusicFile> getFiles(String userId, Genre genre, int page, int size) {
-        size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        size = clamp(size, MAX_PAGE_SIZE);
         return (genre == null)
                 ? musicFileRepository.findByUserIdAndDeletedFalse(userId, PageRequest.of(page, size))
                 : musicFileRepository.findByUserIdAndGenreAndDeletedFalse(userId, genre, PageRequest.of(page, size));
@@ -48,7 +49,7 @@ public class LibraryService {
     private static final int MAX_SEARCH_QUERY_LENGTH = 200;
 
     public Page<MusicFile> searchFiles(String userId, String query, int page, int size) {
-        size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        size = clamp(size, MAX_PAGE_SIZE);
         if (query == null || query.isBlank() || query.length() > MAX_SEARCH_QUERY_LENGTH) {
             return Page.empty();
         }
@@ -163,12 +164,132 @@ public class LibraryService {
     }
 
     public Map<String, Object> findDuplicates(String userId, int page, int size) {
-        size = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        size = clamp(size, MAX_PAGE_SIZE);
         return musicFileRepository.findDuplicatesByUserId(userId, page * size, size);
+    }
+
+    public Map<String, Object> findHashDuplicates(String userId, int page, int size) {
+        size = clamp(size, MAX_PAGE_SIZE);
+        return musicFileRepository.findHashDuplicatesByUserId(userId, page * size, size);
     }
 
     public Map<String, Object> getStatistics(String userId) {
         return musicFileRepository.getStatistics(userId);
+    }
+
+    public LibraryBackup createBackup(String userId, String username) {
+        LibraryBackup backup = new LibraryBackup();
+        backup.setExportedAt(Instant.now());
+        backup.setUsername(username);
+
+        List<MusicFile> files = musicFileRepository.findByUserIdAndDeletedFalse(userId);
+        List<LibraryBackup.TrackBackup> tracks = files.stream().map(f -> {
+            LibraryBackup.TrackBackup t = new LibraryBackup.TrackBackup();
+            t.setFileName(f.getFileName());
+            t.setFilePath(f.getFilePath());
+            t.setArtist(f.getArtist());
+            t.setAlbum(f.getAlbum());
+            t.setTitle(f.getTitle());
+            t.setYear(f.getYear());
+            t.setGenre(f.getGenre() != null ? f.getGenre().name() : null);
+            t.setAdditionalGenres(f.getAdditionalGenres() != null
+                    ? f.getAdditionalGenres().stream().map(Genre::name).collect(Collectors.toList()) : null);
+            t.setRating(f.getRating());
+            t.setFileHash(f.getFileHash());
+            return t;
+        }).collect(Collectors.toList());
+        backup.setTracks(tracks);
+
+        // Map track IDs to file names for playlist portability
+        Map<String, String> idToFileName = files.stream()
+                .collect(Collectors.toMap(MusicFile::getId, MusicFile::getFileName, (a, b) -> a));
+
+        List<Playlist> playlists = playlistRepository.findByUserId(userId);
+        List<LibraryBackup.PlaylistBackup> playlistBackups = playlists.stream().map(p -> {
+            LibraryBackup.PlaylistBackup pb = new LibraryBackup.PlaylistBackup();
+            pb.setName(p.getName());
+            pb.setTrackFileNames(p.getTrackIds().stream()
+                    .map(id -> idToFileName.getOrDefault(id, id))
+                    .collect(Collectors.toList()));
+            return pb;
+        }).collect(Collectors.toList());
+        backup.setPlaylists(playlistBackups);
+
+        return backup;
+    }
+
+    @Transactional
+    public Map<String, Object> restoreBackup(LibraryBackup backup, String userId) {
+        int tracksRestored = 0;
+        int tracksSkipped = 0;
+        int playlistsRestored = 0;
+
+        // Build set of existing file paths to avoid duplicates
+        Set<String> existingPaths = musicFileRepository.findByUserId(userId).stream()
+                .map(MusicFile::getFilePath)
+                .collect(Collectors.toSet());
+
+        // Restore tracks
+        List<MusicFile> toSave = new ArrayList<>();
+        for (LibraryBackup.TrackBackup t : backup.getTracks()) {
+            if (t.getFilePath() != null && existingPaths.contains(t.getFilePath())) {
+                tracksSkipped++;
+                continue;
+            }
+            Genre genre = Genre.OTHER;
+            if (t.getGenre() != null) {
+                try { genre = Genre.valueOf(t.getGenre()); } catch (IllegalArgumentException ignored) {}
+            }
+            List<Genre> additional = null;
+            if (t.getAdditionalGenres() != null) {
+                additional = t.getAdditionalGenres().stream()
+                        .map(g -> { try { return Genre.valueOf(g); } catch (IllegalArgumentException e) { return Genre.OTHER; } })
+                        .collect(Collectors.toList());
+            }
+            MusicFile mf = MusicFile.builder()
+                    .userId(userId)
+                    .filePath(t.getFilePath())
+                    .fileName(t.getFileName())
+                    .artist(t.getArtist())
+                    .album(t.getAlbum())
+                    .title(t.getTitle())
+                    .year(t.getYear())
+                    .genre(genre)
+                    .additionalGenres(additional)
+                    .rating(t.getRating())
+                    .fileHash(t.getFileHash())
+                    .build();
+            toSave.add(mf);
+            tracksRestored++;
+        }
+        if (!toSave.isEmpty()) {
+            musicFileRepository.saveAll(toSave);
+        }
+
+        // Restore playlists — map file names back to IDs
+        Map<String, String> fileNameToId = musicFileRepository.findByUserIdAndDeletedFalse(userId).stream()
+                .collect(Collectors.toMap(MusicFile::getFileName, MusicFile::getId, (a, b) -> a));
+
+        if (backup.getPlaylists() != null) {
+            for (LibraryBackup.PlaylistBackup pb : backup.getPlaylists()) {
+                Playlist playlist = new Playlist();
+                playlist.setName(pb.getName());
+                playlist.setUserId(userId);
+                List<String> trackIds = pb.getTrackFileNames().stream()
+                        .map(fn -> fileNameToId.getOrDefault(fn, null))
+                        .filter(java.util.Objects::nonNull)
+                        .collect(Collectors.toList());
+                playlist.setTrackIds(trackIds);
+                playlistRepository.save(playlist);
+                playlistsRestored++;
+            }
+        }
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("tracksRestored", tracksRestored);
+        result.put("tracksSkipped", tracksSkipped);
+        result.put("playlistsRestored", playlistsRestored);
+        return result;
     }
 
     private void removeFilesFromPlaylists(Set<String> fileIds, String userId) {

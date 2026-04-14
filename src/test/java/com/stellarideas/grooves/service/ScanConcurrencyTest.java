@@ -24,9 +24,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests that concurrent scans for the same user don't cause unexpected behavior.
- * Since jAudioTagger can't parse our dummy files, we verify the error-handling
- * and deduplication paths under concurrency.
+ * Tests that concurrent scans for the same user are properly serialized.
+ * The per-user lock ensures only one scan runs at a time, preventing
+ * race conditions on cover art quota checks and duplicate detection.
  */
 class ScanConcurrencyTest {
 
@@ -46,6 +46,7 @@ class ScanConcurrencyTest {
         scannerService = new MusicScannerService(catalogService, repository, coverArtRepository, progressEmitter);
         ReflectionTestUtils.setField(scannerService, "maxDepth", 20);
         ReflectionTestUtils.setField(scannerService, "fileReaderThreads", 1);
+        ReflectionTestUtils.setField(scannerService, "supportedExtensionsConfig", ".mp3,.m4a,.flac");
         scannerService.initExecutor();
 
         testUser = new User();
@@ -57,7 +58,7 @@ class ScanConcurrencyTest {
     }
 
     @Test
-    void concurrentScansDoNotThrow() throws Exception {
+    void concurrentScansRejectAllButOne() throws Exception {
         // Create some dummy files
         for (int i = 0; i < 10; i++) {
             Files.write(tempDir.resolve("track" + i + ".mp3"), new byte[]{0, 1, 2, 3});
@@ -77,34 +78,34 @@ class ScanConcurrencyTest {
 
         latch.countDown();
 
-        List<ScanResult> results = new ArrayList<>();
+        int succeeded = 0;
+        int rejected = 0;
         for (Future<ScanResult> f : futures) {
-            results.add(f.get(10, TimeUnit.SECONDS));
+            try {
+                ScanResult r = f.get(10, TimeUnit.SECONDS);
+                succeeded++;
+                assertEquals(10, r.getErrors(), "Successful scan should process all files");
+                assertEquals(0, r.getSaved());
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IllegalStateException) {
+                    rejected++;
+                } else {
+                    throw e;
+                }
+            }
         }
         executor.shutdown();
 
-        // All scans should complete without exceptions
-        assertEquals(threadCount, results.size());
-
-        // Each scan sees the same 10 malformed files
-        for (ScanResult r : results) {
-            assertEquals(10, r.getErrors(), "Each concurrent scan should process all files");
-            assertEquals(0, r.getSaved());
-        }
+        // At least one scan should succeed; the rest may be rejected
+        assertTrue(succeeded >= 1, "At least one scan should succeed");
+        assertEquals(threadCount, succeeded + rejected, "All scans should either succeed or be rejected");
     }
 
     @Test
-    void concurrentScansWithExistingFilesSkipDuplicates() throws Exception {
-        Path mp3 = tempDir.resolve("existing.mp3");
-        Files.write(mp3, new byte[]{0, 1, 2});
-
-        // Pre-populate the "existing" list
-        MusicFile existing = MusicFile.builder()
-                .filePath(mp3.toString())
-                .title("Existing")
-                .artist("Artist")
-                .build();
-        when(repository.findByUserId("user1")).thenReturn(List.of(existing));
+    void concurrentScansForDifferentUsersAllSucceed() throws Exception {
+        for (int i = 0; i < 5; i++) {
+            Files.write(tempDir.resolve("track" + i + ".mp3"), new byte[]{0, 1, 2, 3});
+        }
 
         int threadCount = 3;
         ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -112,19 +113,46 @@ class ScanConcurrencyTest {
         List<Future<ScanResult>> futures = new ArrayList<>();
 
         for (int i = 0; i < threadCount; i++) {
+            User user = new User();
+            user.setId("user" + i);
+            user.setUsername("testuser" + i);
+            when(repository.findByUserId("user" + i)).thenReturn(List.of());
+
             futures.add(executor.submit(() -> {
                 latch.await();
-                return scannerService.scanDirectory(testUser, tempDir.toString());
+                return scannerService.scanDirectory(user, tempDir.toString());
             }));
         }
 
         latch.countDown();
 
+        // All scans for different users should succeed (no lock contention)
         for (Future<ScanResult> f : futures) {
             ScanResult r = f.get(10, TimeUnit.SECONDS);
-            assertEquals(1, r.getSkipped(), "Each scan should skip the existing file");
-            assertEquals(0, r.getSaved());
+            assertEquals(5, r.getErrors(), "Each scan should process all files");
         }
         executor.shutdown();
+    }
+
+    @Test
+    void sequentialScansForSameUserBothSucceed() throws Exception {
+        Path mp3 = tempDir.resolve("existing.mp3");
+        Files.write(mp3, new byte[]{0, 1, 2});
+
+        // First scan
+        ScanResult r1 = scannerService.scanDirectory(testUser, tempDir.toString());
+        assertEquals(1, r1.getErrors());
+
+        // Second scan (lock should be released)
+        MusicFile existing = MusicFile.builder()
+                .filePath(mp3.toString())
+                .title("Existing")
+                .artist("Artist")
+                .build();
+        when(repository.findByUserId("user1")).thenReturn(List.of(existing));
+
+        ScanResult r2 = scannerService.scanDirectory(testUser, tempDir.toString());
+        assertEquals(1, r2.getSkipped(), "Second scan should skip the existing file");
+        assertEquals(0, r2.getSaved());
     }
 }

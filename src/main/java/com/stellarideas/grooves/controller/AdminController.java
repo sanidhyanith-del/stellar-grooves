@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
+import com.stellarideas.grooves.config.PaginationDefaults;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashMap;
@@ -26,7 +27,6 @@ import java.util.Map;
 public class AdminController {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
-    private static final int MAX_PAGE_SIZE = 100;
 
     private final UserRepository userRepository;
     private final MusicFileRepository musicFileRepository;
@@ -59,9 +59,9 @@ public class AdminController {
     public ResponseEntity<?> getAllUsers(
             @CurrentUser User admin,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "25") int size) {
+            @RequestParam(defaultValue = "" + PaginationDefaults.DEFAULT_PAGE_SIZE) int size) {
         auditService.log(admin.getUsername(), AuditService.Action.ADMIN_VIEW_USERS);
-        int effectiveSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int effectiveSize = PaginationDefaults.clamp(size, PaginationDefaults.ADMIN_MAX_PAGE_SIZE);
         Page<User> result = userRepository.findAll(PageRequest.of(page, effectiveSize));
 
         var userList = result.getContent().stream().map(u -> {

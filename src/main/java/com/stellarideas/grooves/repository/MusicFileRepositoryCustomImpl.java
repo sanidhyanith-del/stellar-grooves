@@ -126,6 +126,65 @@ public class MusicFileRepositoryCustomImpl implements MusicFileRepositoryCustom 
     }
 
     @Override
+    public Map<String, Object> findHashDuplicatesByUserId(String userId, int skip, int limit) {
+        AggregationOperation groupStage = context -> new Document("$group",
+                new Document("_id", "$fileHash")
+                        .append("count", new Document("$sum", 1))
+                        .append("files", new Document("$push", "$$ROOT")));
+
+        // Count total hash-duplicate groups
+        Aggregation countAgg = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("userId").is(userId)
+                        .and("deleted").ne(true)
+                        .and("fileHash").ne(null)),
+                groupStage,
+                Aggregation.match(Criteria.where("count").gt(1)),
+                Aggregation.count().as("total")
+        );
+        List<Document> countResult = mongoTemplate.aggregate(countAgg, "music_files", Document.class).getMappedResults();
+        long total = countResult.isEmpty() ? 0 : countResult.get(0).getInteger("total", 0);
+
+        // Fetch the paginated slice
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("userId").is(userId)
+                        .and("deleted").ne(true)
+                        .and("fileHash").ne(null)),
+                groupStage,
+                Aggregation.match(Criteria.where("count").gt(1)),
+                Aggregation.sort(org.springframework.data.domain.Sort.Direction.DESC, "count"),
+                Aggregation.skip((long) skip),
+                Aggregation.limit(limit)
+        );
+
+        List<Document> results = mongoTemplate.aggregate(
+                aggregation, "music_files", Document.class
+        ).getMappedResults();
+
+        List<Map<String, Object>> duplicates = new ArrayList<>();
+        for (Document doc : results) {
+            Map<String, Object> group = new LinkedHashMap<>();
+            group.put("fileHash", doc.getString("_id"));
+            List<Document> fileDocs = doc.getList("files", Document.class);
+            List<MusicFileDTO> dtos = new ArrayList<>();
+            if (fileDocs != null) {
+                for (Document fd : fileDocs) {
+                    MusicFile mf = mongoTemplate.getConverter().read(MusicFile.class, fd);
+                    dtos.add(MusicFileDTO.from(mf));
+                }
+            }
+            group.put("files", dtos);
+            duplicates.add(group);
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("duplicates", duplicates);
+        response.put("total", total);
+        response.put("page", skip / Math.max(limit, 1));
+        response.put("size", limit);
+        return response;
+    }
+
+    @Override
     public Page<MusicFile> textSearch(String userId, String query, Pageable pageable) {
         TextCriteria textCriteria = TextCriteria.forDefaultLanguage().matchingPhrase(query);
         Query q = TextQuery.queryText(textCriteria).sortByScore();

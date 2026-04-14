@@ -252,6 +252,38 @@ class ModelEqualsHashCodeTest {
         assertNotEquals(a, "prt1");
     }
 
+    @Test
+    void passwordResetToken_constructor_setsRawTokenAndHash() {
+        PasswordResetToken token = new PasswordResetToken("user1");
+        assertNotNull(token.getRawToken(), "Raw token should be set on construction");
+        assertNotNull(token.getTokenHash(), "Token hash should be set on construction");
+        assertNotEquals(token.getRawToken(), token.getTokenHash(),
+                "Hash should differ from raw token");
+    }
+
+    @Test
+    void passwordResetToken_hashToken_isDeterministic() {
+        String rawToken = "test-token-value";
+        String hash1 = PasswordResetToken.hashToken(rawToken);
+        String hash2 = PasswordResetToken.hashToken(rawToken);
+        assertEquals(hash1, hash2, "Same input should produce same hash");
+    }
+
+    @Test
+    void passwordResetToken_hashToken_differentInputs_differentHashes() {
+        String hash1 = PasswordResetToken.hashToken("token-a");
+        String hash2 = PasswordResetToken.hashToken("token-b");
+        assertNotEquals(hash1, hash2, "Different tokens should produce different hashes");
+    }
+
+    @Test
+    void passwordResetToken_hashToken_matchesConstructorHash() {
+        PasswordResetToken token = new PasswordResetToken("user1");
+        String recomputedHash = PasswordResetToken.hashToken(token.getRawToken());
+        assertEquals(token.getTokenHash(), recomputedHash,
+                "hashToken of raw token should match the stored hash");
+    }
+
     // ---- CoverArt ----
 
     @Test

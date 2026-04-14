@@ -41,6 +41,7 @@ class DeepDirectoryScanTest {
         ScanProgressEmitter progressEmitter = mock(ScanProgressEmitter.class);
         scannerService = new MusicScannerService(catalogService, repository, coverArtRepository, progressEmitter);
         ReflectionTestUtils.setField(scannerService, "fileReaderThreads", 1);
+        ReflectionTestUtils.setField(scannerService, "supportedExtensionsConfig", ".mp3,.m4a,.flac");
         scannerService.initExecutor();
 
         testUser = new User();

@@ -2,10 +2,12 @@ package com.stellarideas.grooves.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -13,14 +15,19 @@ import java.util.concurrent.ConcurrentHashMap;
  * Manages SSE connections for per-user scan progress streaming.
  * Each user can have one active emitter. The scanner service pushes events
  * through this component; the controller creates and returns emitters.
+ *
+ * <p>A scheduled cleanup task runs every 2 minutes to complete and remove
+ * emitters that have been open longer than the timeout, protecting against
+ * memory leaks from abandoned browser connections.</p>
  */
 @Component
 public class ScanProgressEmitter {
 
     private static final Logger logger = LoggerFactory.getLogger(ScanProgressEmitter.class);
-    private static final long EMITTER_TIMEOUT = 10 * 60 * 1000L; // 10 minutes
+    static final long EMITTER_TIMEOUT = 10 * 60 * 1000L; // 10 minutes
 
     private final ConcurrentHashMap<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Instant> emitterCreatedAt = new ConcurrentHashMap<>();
 
     public SseEmitter createEmitter(String userId) {
         // Close any existing emitter for this user
@@ -28,13 +35,57 @@ public class ScanProgressEmitter {
         if (existing != null) {
             existing.complete();
         }
+        emitterCreatedAt.remove(userId);
 
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT);
-        emitter.onCompletion(() -> emitters.remove(userId, emitter));
-        emitter.onTimeout(() -> emitters.remove(userId, emitter));
-        emitter.onError(e -> emitters.remove(userId, emitter));
+        emitter.onCompletion(() -> {
+            emitters.remove(userId, emitter);
+            emitterCreatedAt.remove(userId);
+        });
+        emitter.onTimeout(() -> {
+            emitters.remove(userId, emitter);
+            emitterCreatedAt.remove(userId);
+        });
+        emitter.onError(e -> {
+            emitters.remove(userId, emitter);
+            emitterCreatedAt.remove(userId);
+        });
         emitters.put(userId, emitter);
+        emitterCreatedAt.put(userId, Instant.now());
         return emitter;
+    }
+
+    /**
+     * Periodically clean up emitters that have exceeded the timeout.
+     * This catches cases where the SseEmitter's built-in timeout callback
+     * doesn't fire (e.g. abrupt client disconnect without TCP reset).
+     */
+    @Scheduled(fixedRate = 120_000) // every 2 minutes
+    public void cleanupStaleEmitters() {
+        Instant cutoff = Instant.now().minusMillis(EMITTER_TIMEOUT);
+        int cleaned = 0;
+        for (Map.Entry<String, Instant> entry : emitterCreatedAt.entrySet()) {
+            if (entry.getValue().isBefore(cutoff)) {
+                String userId = entry.getKey();
+                SseEmitter stale = emitters.remove(userId);
+                emitterCreatedAt.remove(userId);
+                if (stale != null) {
+                    try {
+                        stale.complete();
+                    } catch (Exception e) {
+                        logger.debug("Error completing stale emitter for user '{}': {}", userId, e.getMessage());
+                    }
+                    cleaned++;
+                }
+            }
+        }
+        if (cleaned > 0) {
+            logger.info("Cleaned up {} stale SSE emitter(s)", cleaned);
+        }
+    }
+
+    int activeEmitterCount() {
+        return emitters.size();
     }
 
     public void sendEvent(String userId, String eventType, Object data) {
@@ -47,6 +98,7 @@ public class ScanProgressEmitter {
         } catch (IOException e) {
             logger.debug("SSE send failed for user '{}': {}", userId, e.getMessage());
             emitters.remove(userId);
+            emitterCreatedAt.remove(userId);
         }
     }
 
@@ -66,6 +118,7 @@ public class ScanProgressEmitter {
                 "errors", errors
         ));
         SseEmitter emitter = emitters.remove(userId);
+        emitterCreatedAt.remove(userId);
         if (emitter != null) {
             emitter.complete();
         }
@@ -74,6 +127,7 @@ public class ScanProgressEmitter {
     public void sendError(String userId, String message) {
         sendEvent(userId, "error", Map.of("message", message));
         SseEmitter emitter = emitters.remove(userId);
+        emitterCreatedAt.remove(userId);
         if (emitter != null) {
             emitter.complete();
         }

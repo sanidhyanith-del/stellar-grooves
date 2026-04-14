@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -15,6 +16,9 @@ public class Playlist {
 
     @Id
     private String id;
+
+    @Version
+    private Long version;
 
     @NotBlank
     @Size(min = 1, max = 100)
@@ -33,6 +37,9 @@ public class Playlist {
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }

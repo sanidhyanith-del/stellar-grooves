@@ -47,6 +47,8 @@ public class MusicFile {
     @Indexed
     private String userId;
 
+    private String fileHash; // SHA-256 of file content
+
     private int rating; // 0-5, 0 = unrated
 
     private boolean hasCoverArt;
@@ -65,7 +67,7 @@ public class MusicFile {
 
     public MusicFile(String id, String filePath, String fileName, String artist, String album,
                      String title, String year, Genre genre, java.util.List<Genre> additionalGenres,
-                     String userId, int rating, boolean hasCoverArt,
+                     String userId, String fileHash, int rating, boolean hasCoverArt,
                      boolean deleted, Instant deletedAt, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.filePath = filePath;
@@ -77,6 +79,7 @@ public class MusicFile {
         this.genre = genre;
         this.additionalGenres = additionalGenres;
         this.userId = userId;
+        this.fileHash = fileHash;
         this.rating = rating;
         this.hasCoverArt = hasCoverArt;
         this.deleted = deleted;
@@ -113,6 +116,9 @@ public class MusicFile {
     @JsonIgnore
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
+
+    public String getFileHash() { return fileHash; }
+    public void setFileHash(String fileHash) { this.fileHash = fileHash; }
 
     public int getRating() { return rating; }
     public void setRating(int rating) { this.rating = Math.max(0, Math.min(5, rating)); }
@@ -163,6 +169,7 @@ public class MusicFile {
         private Genre genre;
         private java.util.List<Genre> additionalGenres;
         private String userId;
+        private String fileHash;
         private int rating;
         private boolean hasCoverArt;
         private boolean deleted = false;
@@ -182,6 +189,7 @@ public class MusicFile {
         public MusicFileBuilder genre(Genre genre) { this.genre = genre; return this; }
         public MusicFileBuilder additionalGenres(java.util.List<Genre> additionalGenres) { this.additionalGenres = additionalGenres; return this; }
         public MusicFileBuilder userId(String userId) { this.userId = userId; return this; }
+        public MusicFileBuilder fileHash(String fileHash) { this.fileHash = fileHash; return this; }
         public MusicFileBuilder rating(int rating) { this.rating = rating; return this; }
         public MusicFileBuilder hasCoverArt(boolean hasCoverArt) { this.hasCoverArt = hasCoverArt; return this; }
         public MusicFileBuilder deleted(boolean deleted) { this.deleted = deleted; return this; }
@@ -191,7 +199,7 @@ public class MusicFile {
 
         public MusicFile build() {
             return new MusicFile(id, filePath, fileName, artist, album, title, year, genre, additionalGenres,
-                    userId, rating, hasCoverArt, deleted, deletedAt, createdAt, updatedAt);
+                    userId, fileHash, rating, hasCoverArt, deleted, deletedAt, createdAt, updatedAt);
         }
     }
 }

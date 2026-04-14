@@ -17,6 +17,11 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +46,7 @@ class MusicScannerServiceTest {
         scannerService = new MusicScannerService(catalogService, repository, coverArtRepository, progressEmitter);
         ReflectionTestUtils.setField(scannerService, "maxDepth", 20);
         ReflectionTestUtils.setField(scannerService, "fileReaderThreads", 1);
+        ReflectionTestUtils.setField(scannerService, "supportedExtensionsConfig", ".mp3,.m4a,.flac");
         scannerService.initExecutor();
 
         testUser = new User();
@@ -169,5 +175,62 @@ class MusicScannerServiceTest {
         assertEquals(51, result.getErrorDetails().size(), "Error details should be capped at 50 plus truncation message");
         assertTrue(result.getErrorDetails().get(50).contains("truncated"),
                 "Last entry should indicate truncation");
+    }
+
+    @Test
+    void concurrentScansForSameUserAreRejected() throws Exception {
+        // Use a latch to hold the first scan open while we attempt a second
+        CountDownLatch scanStarted = new CountDownLatch(1);
+        CountDownLatch scanRelease = new CountDownLatch(1);
+
+        // Create a slow-running mock that blocks
+        MusicFileRepository slowRepo = mock(MusicFileRepository.class);
+        when(slowRepo.findByUserId("user1")).thenAnswer(inv -> {
+            scanStarted.countDown();
+            scanRelease.await();
+            return List.of();
+        });
+
+        CoverArtRepository coverArtRepo = mock(CoverArtRepository.class);
+        ScanProgressEmitter progressEmitter = mock(ScanProgressEmitter.class);
+        MusicScannerService lockTestService = new MusicScannerService(catalogService, slowRepo, coverArtRepo, progressEmitter);
+        ReflectionTestUtils.setField(lockTestService, "maxDepth", 20);
+        ReflectionTestUtils.setField(lockTestService, "fileReaderThreads", 1);
+        ReflectionTestUtils.setField(lockTestService, "supportedExtensionsConfig", ".mp3,.m4a,.flac");
+        lockTestService.initExecutor();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        AtomicInteger illegalStateCount = new AtomicInteger(0);
+
+        try {
+            // Start first scan (will block)
+            Future<?> firstScan = executor.submit(() -> {
+                try {
+                    lockTestService.scanDirectory(testUser, tempDir.toString());
+                } catch (Exception e) {
+                    // expected to eventually complete or error
+                }
+            });
+
+            // Wait for first scan to actually start
+            scanStarted.await();
+
+            // Attempt second concurrent scan — should fail with IllegalStateException
+            try {
+                lockTestService.scanDirectory(testUser, tempDir.toString());
+            } catch (IllegalStateException e) {
+                illegalStateCount.incrementAndGet();
+                assertTrue(e.getMessage().contains("already in progress"));
+            }
+
+            // Release the first scan
+            scanRelease.countDown();
+            firstScan.get();
+        } finally {
+            executor.shutdownNow();
+            lockTestService.destroy();
+        }
+
+        assertEquals(1, illegalStateCount.get(), "Second concurrent scan should have been rejected");
     }
 }

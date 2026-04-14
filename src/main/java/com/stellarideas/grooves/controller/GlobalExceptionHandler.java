@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.data.mongodb.UncategorizedMongoDbException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -104,6 +105,13 @@ public class GlobalExceptionHandler {
         logger.error("I/O error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(problem(HttpStatus.INTERNAL_SERVER_ERROR, "A file system error occurred"));
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ProblemDetail> handleOptimisticLock(OptimisticLockingFailureException ex) {
+        logger.warn("Optimistic locking conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(problem(HttpStatus.CONFLICT, "The resource was modified by another request. Please refresh and try again."));
     }
 
     @ExceptionHandler(UncategorizedMongoDbException.class)
