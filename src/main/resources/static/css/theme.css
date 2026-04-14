@@ -1,0 +1,178 @@
+/* =============================================
+   Stellar Grooves – Theme
+   Variables, reset, base styles, light mode
+   ============================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Righteous&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+:root {
+    /* Wood & Chrome palette */
+    --bg-primary: #1a0e0a;
+    --bg-secondary: #2a1810;
+    --bg-card: #261612;
+    --bg-chrome: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 40%, #3d3d3d 50%, #1a1a1a 100%);
+    --border-color: #4a3228;
+    --border-chrome: #6b6b6b;
+
+    /* Neon colors */
+    --accent: #ffb347;
+    --accent-hover: #ffd080;
+    --neon-pink: #ff6eb4;
+    --neon-cyan: #4de8e0;
+    --neon-amber: #ffb347;
+    --neon-blue: #5daaff;
+
+    /* Glow effects */
+    --glow-amber: 0 0 8px rgba(255, 179, 71, 0.5), 0 0 20px rgba(255, 179, 71, 0.2);
+    --glow-pink: 0 0 8px rgba(255, 110, 180, 0.5), 0 0 20px rgba(255, 110, 180, 0.2);
+    --glow-cyan: 0 0 8px rgba(77, 232, 224, 0.5), 0 0 20px rgba(77, 232, 224, 0.2);
+
+    /* Text */
+    --text-primary: #f0e6d8;
+    --text-secondary: #b8a898;
+    --text-muted: #7a6a5a;
+
+    /* Status */
+    --danger: #ff6b6b;
+    --success: #6bdb8a;
+    --info: #5daaff;
+
+    /* Shape & shadow */
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+    --shadow-chrome: 0 2px 4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+
+    /* Wood texture (CSS-only) */
+    --wood-grain: repeating-linear-gradient(
+        92deg,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.04) 3px,
+        rgba(0,0,0,0.04) 4px
+    );
+}
+
+/* ── Reset / Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+    margin: 0;
+    background-color: var(--bg-primary);
+    background-image:
+        var(--wood-grain),
+        radial-gradient(ellipse at 30% 20%, rgba(255, 179, 71, 0.03) 0%, transparent 60%),
+        radial-gradient(ellipse at 70% 80%, rgba(255, 110, 180, 0.02) 0%, transparent 60%);
+    color: var(--text-primary);
+    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+a { color: var(--neon-amber); text-decoration: none; transition: color 0.2s, text-shadow 0.2s; }
+a:hover { color: var(--accent-hover); text-decoration: none; text-shadow: 0 0 8px rgba(255, 179, 71, 0.4); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Focus-visible for keyboard navigation ── */
+.btn-action-sm:focus-visible, .btn-play-row:focus-visible, .star-rating .star:focus-visible,
+.drill-row:focus-visible, th.col-sortable:focus-visible {
+    outline: 2px solid var(--neon-amber);
+    outline-offset: 2px;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ── Light mode ── */
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --bg-primary: #f5f0eb;
+        --bg-secondary: #ebe3da;
+        --bg-card: #ffffff;
+        --bg-chrome: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 40%, #ddd 50%, #c8c8c8 100%);
+        --border-color: #c8b8a8;
+        --border-chrome: #aaa;
+        --accent: #c87820;
+        --accent-hover: #e89030;
+        --neon-pink: #d94080;
+        --neon-cyan: #2aaca4;
+        --neon-amber: #c87820;
+        --neon-blue: #3878c8;
+        --glow-amber: 0 0 4px rgba(200, 120, 32, 0.25);
+        --glow-pink: 0 0 4px rgba(217, 64, 128, 0.25);
+        --glow-cyan: 0 0 4px rgba(42, 172, 164, 0.25);
+        --text-primary: #2a1a10;
+        --text-secondary: #5a4a3a;
+        --text-muted: #8a7a6a;
+        --danger: #d44;
+        --success: #2a8a4a;
+        --info: #3878c8;
+        --radius: 12px;
+        --shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        --shadow-chrome: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6);
+        --wood-grain: none;
+    }
+    :root:not([data-theme="dark"]) body {
+        background-image: none;
+    }
+}
+
+[data-theme="light"] {
+    --bg-primary: #f5f0eb;
+    --bg-secondary: #ebe3da;
+    --bg-card: #ffffff;
+    --bg-chrome: linear-gradient(180deg, #e8e8e8 0%, #d0d0d0 40%, #ddd 50%, #c8c8c8 100%);
+    --border-color: #c8b8a8;
+    --border-chrome: #aaa;
+    --accent: #c87820;
+    --accent-hover: #e89030;
+    --neon-pink: #d94080;
+    --neon-cyan: #2aaca4;
+    --neon-amber: #c87820;
+    --neon-blue: #3878c8;
+    --glow-amber: 0 0 4px rgba(200, 120, 32, 0.25);
+    --glow-pink: 0 0 4px rgba(217, 64, 128, 0.25);
+    --glow-cyan: 0 0 4px rgba(42, 172, 164, 0.25);
+    --text-primary: #2a1a10;
+    --text-secondary: #5a4a3a;
+    --text-muted: #8a7a6a;
+    --danger: #d44;
+    --success: #2a8a4a;
+    --info: #3878c8;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    --shadow-chrome: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6);
+    --wood-grain: none;
+}
+[data-theme="light"] body {
+    background-image: none;
+}
+
+/* ── Theme toggle button ── */
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+    line-height: 1;
+}
+.theme-toggle:hover {
+    color: var(--neon-amber);
+    border-color: var(--neon-amber);
+}
