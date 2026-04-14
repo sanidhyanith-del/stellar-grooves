@@ -36,6 +36,8 @@ public class User {
 
     private Set<Role> roles = new HashSet<>();
 
+    private boolean emailVerified = false;
+
     private boolean accountLocked = false;
     private boolean enabled = true;
 
@@ -55,7 +57,7 @@ public class User {
     }
 
     public User(String id, String username, String password, String email, String musicDirectory,
-                Set<Role> roles, boolean accountLocked, boolean enabled,
+                Set<Role> roles, boolean emailVerified, boolean accountLocked, boolean enabled,
                 int failedLoginAttempts, Instant lockoutExpiry,
                 String scanSchedule, String scanPath, Instant lastScheduledScan,
                 Instant createdAt, Instant updatedAt) {
@@ -65,6 +67,7 @@ public class User {
         this.email = email;
         this.musicDirectory = musicDirectory;
         this.roles = roles;
+        this.emailVerified = emailVerified;
         this.accountLocked = accountLocked;
         this.enabled = enabled;
         this.failedLoginAttempts = failedLoginAttempts;
@@ -139,6 +142,14 @@ public class User {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 
     public int getFailedLoginAttempts() {
@@ -221,6 +232,7 @@ public class User {
         private String email;
         private String musicDirectory;
         private Set<Role> roles;
+        private boolean emailVerified = false;
         private boolean accountLocked = false;
         private boolean enabled = true;
         private int failedLoginAttempts = 0;
@@ -261,6 +273,11 @@ public class User {
 
         public UserBuilder roles(Set<Role> roles) {
             this.roles = roles;
+            return this;
+        }
+
+        public UserBuilder emailVerified(boolean emailVerified) {
+            this.emailVerified = emailVerified;
             return this;
         }
 
@@ -310,7 +327,7 @@ public class User {
         }
 
         public User build() {
-            return new User(id, username, password, email, musicDirectory, roles, accountLocked, enabled,
+            return new User(id, username, password, email, musicDirectory, roles, emailVerified, accountLocked, enabled,
                     failedLoginAttempts, lockoutExpiry, scanSchedule, scanPath, lastScheduledScan,
                     createdAt, updatedAt);
         }

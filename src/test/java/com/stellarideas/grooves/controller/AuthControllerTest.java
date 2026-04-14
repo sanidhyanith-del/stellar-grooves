@@ -54,6 +54,8 @@ class AuthControllerTest {
     private RefreshTokenRepository refreshTokenRepository;
     private PasswordResetTokenRepository passwordResetTokenRepository;
     private PasswordResetMailService passwordResetMailService;
+    private com.stellarideas.grooves.repository.EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private com.stellarideas.grooves.service.EmailVerificationService emailVerificationService;
 
     @BeforeEach
     void setUp() {
@@ -67,6 +69,8 @@ class AuthControllerTest {
         refreshTokenRepository = mock(RefreshTokenRepository.class);
         passwordResetTokenRepository = mock(PasswordResetTokenRepository.class);
         passwordResetMailService = mock(PasswordResetMailService.class);
+        emailVerificationTokenRepository = mock(com.stellarideas.grooves.repository.EmailVerificationTokenRepository.class);
+        emailVerificationService = mock(com.stellarideas.grooves.service.EmailVerificationService.class);
 
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("messages");
@@ -74,7 +78,8 @@ class AuthControllerTest {
 
         controller = new AuthController(authenticationManager, userRepository, passwordEncoder, jwtUtils,
                 msgHelper, loginAttemptService, auditService, blacklistedTokenRepository,
-                refreshTokenRepository, passwordResetTokenRepository, passwordResetMailService);
+                refreshTokenRepository, passwordResetTokenRepository, passwordResetMailService,
+                emailVerificationTokenRepository, emailVerificationService);
     }
 
     private SignupRequest signupRequest(String username, String email, String password) {
@@ -119,7 +124,8 @@ class AuthControllerTest {
         ResponseEntity<?> response = controller.registerUser(signupRequest("newuser", "new@test.com", "password123"));
 
         assertEquals(200, response.getStatusCode().value());
-        verify(userRepository).save(any(User.class));
+        // save called twice: initial create + setting emailVerified=true (verification disabled by default)
+        verify(userRepository, times(2)).save(any(User.class));
         verify(auditService).log(eq("newuser"), eq(AuditService.Action.SIGNUP));
     }
 
@@ -291,7 +297,8 @@ class AuthControllerTest {
     @Test
     void executePasswordResetSucceeds() {
         PasswordResetToken token = new PasswordResetToken("user1");
-        when(passwordResetTokenRepository.findByToken(token.getToken())).thenReturn(Optional.of(token));
+        String rawToken = token.getRawToken();
+        when(passwordResetTokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
 
         User user = new User();
         user.setId("user1");
@@ -300,7 +307,7 @@ class AuthControllerTest {
         when(passwordEncoder.encode("newPassword")).thenReturn("encoded");
 
         PasswordResetExecuteDTO request = new PasswordResetExecuteDTO();
-        request.setToken(token.getToken());
+        request.setToken(rawToken);
         request.setNewPassword("newPassword");
 
         ResponseEntity<?> response = controller.executePasswordReset(request);
@@ -313,11 +320,12 @@ class AuthControllerTest {
     @Test
     void executePasswordResetRejectsUsedToken() {
         PasswordResetToken token = new PasswordResetToken("user1");
+        String rawToken = token.getRawToken();
         token.setUsed(true);
-        when(passwordResetTokenRepository.findByToken(token.getToken())).thenReturn(Optional.of(token));
+        when(passwordResetTokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
 
         PasswordResetExecuteDTO request = new PasswordResetExecuteDTO();
-        request.setToken(token.getToken());
+        request.setToken(rawToken);
         request.setNewPassword("newPassword");
 
         ResponseEntity<?> response = controller.executePasswordReset(request);
@@ -327,15 +335,14 @@ class AuthControllerTest {
 
     @Test
     void executePasswordResetRejectsExpiredToken() {
-        PasswordResetToken token = new PasswordResetToken();
-        token.setToken("expired");
-        token.setUserId("user1");
+        PasswordResetToken token = new PasswordResetToken("user1");
+        String rawToken = token.getRawToken();
         token.setUsed(false);
         token.setExpiresAt(Instant.now().minusSeconds(3600));
-        when(passwordResetTokenRepository.findByToken("expired")).thenReturn(Optional.of(token));
+        when(passwordResetTokenRepository.findByTokenHash(token.getTokenHash())).thenReturn(Optional.of(token));
 
         PasswordResetExecuteDTO request = new PasswordResetExecuteDTO();
-        request.setToken("expired");
+        request.setToken(rawToken);
         request.setNewPassword("newPassword");
 
         ResponseEntity<?> response = controller.executePasswordReset(request);
@@ -345,7 +352,8 @@ class AuthControllerTest {
 
     @Test
     void executePasswordResetRejectsUnknownToken() {
-        when(passwordResetTokenRepository.findByToken("unknown")).thenReturn(Optional.empty());
+        String unknownHash = PasswordResetToken.hashToken("unknown");
+        when(passwordResetTokenRepository.findByTokenHash(unknownHash)).thenReturn(Optional.empty());
 
         PasswordResetExecuteDTO request = new PasswordResetExecuteDTO();
         request.setToken("unknown");

@@ -6,16 +6,19 @@ import com.stellarideas.grooves.dto.PasswordResetRequestDTO;
 import com.stellarideas.grooves.dto.RefreshTokenRequest;
 import com.stellarideas.grooves.dto.SignupRequest;
 import com.stellarideas.grooves.model.BlacklistedToken;
+import com.stellarideas.grooves.model.EmailVerificationToken;
 import com.stellarideas.grooves.model.PasswordResetToken;
 import com.stellarideas.grooves.model.RefreshToken;
 import com.stellarideas.grooves.model.Role;
 import com.stellarideas.grooves.model.User;
 import com.stellarideas.grooves.repository.BlacklistedTokenRepository;
+import com.stellarideas.grooves.repository.EmailVerificationTokenRepository;
 import com.stellarideas.grooves.repository.PasswordResetTokenRepository;
 import com.stellarideas.grooves.repository.RefreshTokenRepository;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.JwtUtils;
 import com.stellarideas.grooves.service.AuditService;
+import com.stellarideas.grooves.service.EmailVerificationService;
 import com.stellarideas.grooves.service.LoginAttemptService;
 import com.stellarideas.grooves.service.MessageHelper;
 import com.stellarideas.grooves.service.PasswordResetMailService;
@@ -58,6 +61,11 @@ public class AuthController {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordResetMailService passwordResetMailService;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final EmailVerificationService emailVerificationService;
+
+    @org.springframework.beans.factory.annotation.Value("${stellar.grooves.email.verificationRequired:false}")
+    private boolean emailVerificationRequired;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
                           PasswordEncoder encoder, JwtUtils jwtUtils, MessageHelper msg,
@@ -65,7 +73,9 @@ public class AuthController {
                           BlacklistedTokenRepository blacklistedTokenRepository,
                           RefreshTokenRepository refreshTokenRepository,
                           PasswordResetTokenRepository passwordResetTokenRepository,
-                          PasswordResetMailService passwordResetMailService) {
+                          PasswordResetMailService passwordResetMailService,
+                          EmailVerificationTokenRepository emailVerificationTokenRepository,
+                          EmailVerificationService emailVerificationService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.encoder = encoder;
@@ -77,6 +87,8 @@ public class AuthController {
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordResetMailService = passwordResetMailService;
+        this.emailVerificationTokenRepository = emailVerificationTokenRepository;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @PostMapping("/signin")
@@ -102,6 +114,12 @@ public class AuthController {
 
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new BadCredentialsException("User not found after authentication"));
+
+            if (emailVerificationRequired && !user.isEmailVerified()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(GlobalExceptionHandler.problem(HttpStatus.FORBIDDEN, msg.msg("auth.email.not_verified")));
+            }
+
             RefreshToken refreshToken = new RefreshToken(
                     user.getId(),
                     jwtUtils.getRefreshTokenExpirationMs());
@@ -146,8 +164,20 @@ public class AuthController {
         user.setRoles(roles);
         userRepository.save(user);
 
+        // Send verification email if enabled
+        if (emailVerificationRequired) {
+            EmailVerificationToken verificationToken = new EmailVerificationToken(user.getId());
+            emailVerificationTokenRepository.save(verificationToken);
+            emailVerificationService.sendVerificationEmail(
+                    user.getEmail(), user.getUsername(), verificationToken.getRawToken());
+        } else {
+            user.setEmailVerified(true);
+            userRepository.save(user);
+        }
+
         auditService.log(normalizedUsername, AuditService.Action.SIGNUP);
-        return ResponseEntity.ok(Map.of("message", msg.msg("auth.registered")));
+        return ResponseEntity.ok(Map.of("message", msg.msg("auth.registered"),
+                "emailVerificationRequired", emailVerificationRequired));
     }
 
     @PostMapping("/refresh")
@@ -195,7 +225,8 @@ public class AuthController {
             PasswordResetToken resetToken = new PasswordResetToken(user.getId());
             passwordResetTokenRepository.save(resetToken);
 
-            passwordResetMailService.sendResetEmail(user.getEmail(), user.getUsername(), resetToken.getToken());
+            // Send the raw (unhashed) token to the user — only the hash is persisted
+            passwordResetMailService.sendResetEmail(user.getEmail(), user.getUsername(), resetToken.getRawToken());
             logger.info("Password reset token generated for user '{}'", user.getUsername());
             auditService.log(user.getUsername(), AuditService.Action.PASSWORD_RESET_REQUEST);
         }
@@ -205,7 +236,8 @@ public class AuthController {
 
     @PostMapping("/password-reset/execute")
     public ResponseEntity<?> executePasswordReset(@Valid @RequestBody PasswordResetExecuteDTO executeRequest) {
-        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByToken(executeRequest.getToken());
+        String tokenHash = PasswordResetToken.hashToken(executeRequest.getToken());
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByTokenHash(tokenHash);
 
         if (tokenOpt.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -264,5 +296,49 @@ public class AuthController {
             auditService.log(username, AuditService.Action.LOGOUT);
         }
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
+        String tokenHash = PasswordResetToken.hashToken(token);
+        Optional<EmailVerificationToken> tokenOpt = emailVerificationTokenRepository.findByTokenHash(tokenHash);
+
+        if (tokenOpt.isEmpty() || tokenOpt.get().getExpiresAt().isBefore(Instant.now())) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, msg.msg("auth.verify.invalid")));
+        }
+
+        EmailVerificationToken verificationToken = tokenOpt.get();
+        Optional<User> userOpt = userRepository.findById(verificationToken.getUserId());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, msg.msg("auth.verify.invalid")));
+        }
+
+        User user = userOpt.get();
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        emailVerificationTokenRepository.deleteByUserId(user.getId());
+        auditService.log(user.getUsername(), AuditService.Action.EMAIL_VERIFIED);
+        return ResponseEntity.ok(Map.of("message", msg.msg("auth.verify.success")));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resendVerification(@RequestBody Map<String, String> body) {
+        String email = body.getOrDefault("email", "").toLowerCase(java.util.Locale.ROOT);
+        Optional<User> userOpt = userRepository.findByEmail(email);
+
+        if (userOpt.isPresent() && !userOpt.get().isEmailVerified()) {
+            User user = userOpt.get();
+            emailVerificationTokenRepository.deleteByUserId(user.getId());
+            EmailVerificationToken verificationToken = new EmailVerificationToken(user.getId());
+            emailVerificationTokenRepository.save(verificationToken);
+            emailVerificationService.sendVerificationEmail(
+                    user.getEmail(), user.getUsername(), verificationToken.getRawToken());
+        }
+
+        // Always return 200 to prevent email enumeration
+        return ResponseEntity.ok(Map.of("message", msg.msg("auth.verify.resent")));
     }
 }

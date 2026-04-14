@@ -41,7 +41,9 @@ public class AuditService {
         ADMIN_VIEW_USERS,
         FILE_RESTORE,
         FILE_PERMANENT_DELETE,
-        TRASH_EMPTY
+        TRASH_EMPTY,
+        EMAIL_VERIFIED,
+        LIBRARY_RESTORE
     }
 
     /**

@@ -2,9 +2,12 @@ package com.stellarideas.grooves.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -108,5 +111,38 @@ class ScanProgressEmitterTest {
         assertNotNull(emitter1);
         assertNotNull(emitter2);
         assertNotSame(emitter1, emitter2);
+    }
+
+    @Test
+    void cleanupStaleEmittersRemovesExpiredEntries() {
+        emitter.createEmitter("user1");
+        emitter.createEmitter("user2");
+
+        // Backdate user1's creation time to past the timeout
+        @SuppressWarnings("unchecked")
+        ConcurrentHashMap<String, Instant> createdAt =
+                (ConcurrentHashMap<String, Instant>) ReflectionTestUtils.getField(emitter, "emitterCreatedAt");
+        createdAt.put("user1", Instant.now().minusMillis(ScanProgressEmitter.EMITTER_TIMEOUT + 1000));
+
+        emitter.cleanupStaleEmitters();
+
+        // user1 should be cleaned up, user2 should remain
+        assertEquals(1, emitter.activeEmitterCount());
+    }
+
+    @Test
+    void cleanupStaleEmittersDoesNothingWhenAllFresh() {
+        emitter.createEmitter("user1");
+        emitter.createEmitter("user2");
+
+        emitter.cleanupStaleEmitters();
+
+        assertEquals(2, emitter.activeEmitterCount());
+    }
+
+    @Test
+    void cleanupStaleEmittersHandlesEmptyMap() {
+        assertDoesNotThrow(() -> emitter.cleanupStaleEmitters());
+        assertEquals(0, emitter.activeEmitterCount());
     }
 }

@@ -1,5 +1,6 @@
 package com.stellarideas.grooves.controller;
 
+import com.stellarideas.grooves.config.PaginationDefaults;
 import com.stellarideas.grooves.dto.*;
 import com.stellarideas.grooves.model.*;
 import com.stellarideas.grooves.repository.PlaybackQueueRepository;
@@ -205,6 +206,88 @@ public class LibraryController {
         return MediaType.APPLICATION_OCTET_STREAM;
     }
 
+    @GetMapping("/files/{id}/transcode")
+    public ResponseEntity<?> transcodeFile(
+            @CurrentUser User user,
+            @PathVariable String id,
+            @RequestParam(defaultValue = "mp3") String format) throws IOException {
+        if (!"mp3".equalsIgnoreCase(format)) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, "Only 'mp3' transcoding is supported"));
+        }
+        Optional<MusicFile> fileOpt = libraryService.findFileByIdAndUserId(id, user.getId());
+        if (fileOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String fileName = fileOpt.get().getFileName().toLowerCase();
+        if (fileName.endsWith(".mp3")) {
+            // Already MP3 — redirect to normal stream
+            return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
+                    .header("Location", "/api/v1/library/files/" + id + "/stream")
+                    .build();
+        }
+        Path path = Paths.get(fileOpt.get().getFilePath()).normalize();
+        if (!Files.exists(path) || !Files.isReadable(path)) {
+            return ResponseEntity.notFound().build();
+        }
+        if (user.getMusicDirectory() == null || user.getMusicDirectory().isBlank()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        Path musicDir = Paths.get(user.getMusicDirectory()).toRealPath();
+        path = path.toRealPath();
+        if (!path.startsWith(musicDir)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            // Check ffmpeg is available
+            Process check = new ProcessBuilder("ffmpeg", "-version")
+                    .redirectErrorStream(true).start();
+            check.waitFor();
+            if (check.exitValue() != 0) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(GlobalExceptionHandler.problem(HttpStatus.SERVICE_UNAVAILABLE,
+                                "Transcoding is not available — ffmpeg is not installed"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.SERVICE_UNAVAILABLE,
+                            "Transcoding is not available — ffmpeg is not installed"));
+        }
+
+        // Transcode to MP3 via ffmpeg (128kbps CBR for bandwidth savings)
+        ProcessBuilder pb = new ProcessBuilder(
+                "ffmpeg", "-i", path.toString(),
+                "-f", "mp3", "-ab", "128k", "-"
+        );
+        pb.redirectErrorStream(false);
+        Process process = pb.start();
+
+        byte[] mp3Data;
+        try {
+            mp3Data = process.getInputStream().readAllBytes();
+            process.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+            return ResponseEntity.internalServerError()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.INTERNAL_SERVER_ERROR, "Transcoding interrupted"));
+        }
+
+        if (process.exitValue() != 0) {
+            logger.error("ffmpeg transcoding failed for '{}' with exit code {}", path.getFileName(), process.exitValue());
+            return ResponseEntity.internalServerError()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.INTERNAL_SERVER_ERROR, "Transcoding failed"));
+        }
+
+        String outputName = fileOpt.get().getFileName().replaceAll("\\.[^.]+$", ".mp3");
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("audio/mpeg"))
+                .header("Content-Disposition", "inline; filename=\"" + outputName + "\"")
+                .contentLength(mp3Data.length)
+                .body(mp3Data);
+    }
+
     @PatchMapping("/files/{id}/genre")
     public ResponseEntity<?> updateFileGenre(@CurrentUser User user, @PathVariable String id,
                                              @Valid @RequestBody UpdateGenreRequest request) {
@@ -267,6 +350,14 @@ public class LibraryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         return ResponseEntity.ok(libraryService.findDuplicates(user.getId(), page, size));
+    }
+
+    @GetMapping("/duplicates/by-hash")
+    public ResponseEntity<?> getHashDuplicates(
+            @CurrentUser User user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(libraryService.findHashDuplicates(user.getId(), page, size));
     }
 
     @DeleteMapping("/files/{id}")
@@ -370,6 +461,30 @@ public class LibraryController {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;
+    }
+
+    // --- Backup/Restore endpoints ---
+
+    @GetMapping("/backup")
+    public ResponseEntity<?> backupLibrary(@CurrentUser User user) {
+        com.stellarideas.grooves.dto.LibraryBackup backup = libraryService.createBackup(user.getId(), user.getUsername());
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"stellar-grooves-backup.json\"")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(backup);
+    }
+
+    @PostMapping("/restore")
+    public ResponseEntity<?> restoreLibrary(@CurrentUser User user,
+                                            @RequestBody com.stellarideas.grooves.dto.LibraryBackup backup) {
+        if (backup.getTracks() == null || backup.getTracks().isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, "Backup contains no tracks"));
+        }
+        Map<String, Object> result = libraryService.restoreBackup(backup, user.getId());
+        auditService.log(user.getUsername(), AuditService.Action.LIBRARY_RESTORE,
+                result.get("tracksRestored") + " tracks, " + result.get("playlistsRestored") + " playlists");
+        return ResponseEntity.ok(result);
     }
 
     // --- Scan schedule endpoints ---

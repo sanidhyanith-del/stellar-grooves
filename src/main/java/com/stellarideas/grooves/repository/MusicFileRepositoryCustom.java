@@ -28,6 +28,12 @@ public interface MusicFileRepositoryCustom {
             String userId, String query, org.springframework.data.domain.Pageable pageable);
 
     /**
+     * Find duplicate files by SHA-256 hash for a user.
+     * Returns groups of files that share the same fileHash.
+     */
+    Map<String, Object> findHashDuplicatesByUserId(String userId, int skip, int limit);
+
+    /**
      * Aggregate library statistics: genre distribution, top artists, decade distribution.
      */
     Map<String, Object> getStatistics(String userId);

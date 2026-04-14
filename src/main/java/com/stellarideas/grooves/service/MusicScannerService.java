@@ -9,8 +9,12 @@ import com.stellarideas.grooves.repository.CoverArtRepository;
 import com.stellarideas.grooves.repository.MusicFileRepository;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.exceptions.CannotReadException;
+import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
+import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
 import org.jaudiotagger.tag.FieldKey;
 import org.jaudiotagger.tag.Tag;
+import org.jaudiotagger.tag.TagException;
 import org.jaudiotagger.tag.images.Artwork;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,11 +22,14 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,7 +38,6 @@ public class MusicScannerService implements DisposableBean {
 
     private static final Logger logger = LoggerFactory.getLogger(MusicScannerService.class);
 
-    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".mp3", ".m4a", ".flac");
     private static final int DEFAULT_MAX_DEPTH = 20;
     private static final int HARD_MAX_DEPTH = 50;
     private static final int BATCH_SIZE = 200;
@@ -54,7 +60,15 @@ public class MusicScannerService implements DisposableBean {
     @Value("${stellar.grooves.scan.fileReaderThreads:2}")
     private int fileReaderThreads;
 
+    @Value("${stellar.grooves.scan.supportedExtensions:.mp3,.m4a,.flac}")
+    private String supportedExtensionsConfig;
+
+    private Set<String> supportedExtensions;
+
     private volatile ExecutorService fileReadExecutor;
+
+    /** Per-user locks to prevent concurrent scans from racing on quota checks. */
+    private final ConcurrentHashMap<String, ReentrantLock> userScanLocks = new ConcurrentHashMap<>();
 
     private final MusicCatalogService catalogService;
     private final MusicFileRepository repository;
@@ -77,7 +91,12 @@ public class MusicScannerService implements DisposableBean {
             t.setDaemon(true);
             return t;
         });
-        logger.info("Audio file reader pool initialized with {} thread(s)", threads);
+        supportedExtensions = Arrays.stream(supportedExtensionsConfig.split(","))
+                .map(String::trim)
+                .map(ext -> ext.startsWith(".") ? ext.toLowerCase() : "." + ext.toLowerCase())
+                .collect(Collectors.toUnmodifiableSet());
+        logger.info("Audio file reader pool initialized with {} thread(s), extensions: {}",
+                threads, supportedExtensions);
     }
 
     @Override
@@ -87,6 +106,18 @@ public class MusicScannerService implements DisposableBean {
     }
 
     public ScanResult scanDirectory(User user, String directoryPath) throws Exception {
+        ReentrantLock lock = userScanLocks.computeIfAbsent(user.getId(), k -> new ReentrantLock());
+        if (!lock.tryLock()) {
+            throw new IllegalStateException("A scan is already in progress for this user");
+        }
+        try {
+            return doScanDirectory(user, directoryPath);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private ScanResult doScanDirectory(User user, String directoryPath) throws Exception {
         Path root = Paths.get(directoryPath).normalize();
         int effectiveDepth = Math.min(maxDepth, HARD_MAX_DEPTH);
 
@@ -116,7 +147,7 @@ public class MusicScannerService implements DisposableBean {
                     .filter(p -> !Files.isSymbolicLink(p))
                     .filter(p -> {
                         String name = p.toString().toLowerCase();
-                        return SUPPORTED_EXTENSIONS.stream().anyMatch(name::endsWith);
+                        return supportedExtensions.stream().anyMatch(name::endsWith);
                     })
                     .iterator();
 
@@ -184,6 +215,8 @@ public class MusicScannerService implements DisposableBean {
                         }
                     }
 
+                    String fileHash = computeFileHash(path);
+
                     MusicFile musicFile = MusicFile.builder()
                             .userId(user.getId())
                             .filePath(path.toString())
@@ -194,6 +227,7 @@ public class MusicScannerService implements DisposableBean {
                             .year(year)
                             .genre(genre)
                             .additionalGenres(additionalGenres)
+                            .fileHash(fileHash)
                             .hasCoverArt(hasCover)
                             .build();
 
@@ -208,8 +242,12 @@ public class MusicScannerService implements DisposableBean {
                         result.addSaved(batch.size());
                         batch.clear();
                     }
-                } catch (Exception e) {
+                } catch (CannotReadException | TagException | ReadOnlyFileException
+                         | InvalidAudioFrameException | IOException e) {
                     logger.warn("Skipping file '{}': {}", path.getFileName(), e.getMessage());
+                    result.addError(path.getFileName().toString(), e.getMessage());
+                } catch (RuntimeException e) {
+                    logger.error("Unexpected error processing file '{}': {}", path.getFileName(), e.getMessage(), e);
                     result.addError(path.getFileName().toString(), e.getMessage());
                 }
                 // Emit progress every 10 files
@@ -261,9 +299,26 @@ public class MusicScannerService implements DisposableBean {
             art.setData(artwork.getBinaryData());
             coverArtRepository.save(art);
             return dataLength;
-        } catch (Exception e) {
-            logger.debug("Failed to extract cover art: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            logger.debug("Failed to extract cover art for '{} - {}': {}", artist, album, e.getMessage());
             return 0;
+        }
+    }
+
+    private String computeFileHash(Path path) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            try (InputStream is = Files.newInputStream(path)) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = is.read(buf)) != -1) {
+                    digest.update(buf, 0, n);
+                }
+            }
+            return java.util.HexFormat.of().formatHex(digest.digest());
+        } catch (Exception e) {
+            logger.debug("Failed to compute file hash for '{}': {}", path.getFileName(), e.getMessage());
+            return null;
         }
     }
 

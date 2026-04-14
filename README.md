@@ -9,21 +9,23 @@ Built with Spring Boot, MongoDB, and vanilla JavaScript.
 ## Features
 
 ### Library & Playback
-- **Directory scanning** — recursively finds `.mp3`, `.flac`, and `.m4a` files and extracts metadata (artist, album, title, year, cover art) via JAudioTagger; configurable scan depth limit; symlink-safe; per-file timeout prevents corrupt files from stalling the scan
+- **Directory scanning** — recursively finds audio files (`.mp3`, `.flac`, `.m4a` by default; configurable via `SCAN_SUPPORTED_EXTENSIONS`) and extracts metadata (artist, album, title, year, cover art) via JAudioTagger; computes SHA-256 file hashes for exact duplicate detection; configurable scan depth limit; symlink-safe; per-file timeout prevents corrupt files from stalling the scan
 - **Real-time scan progress** — SSE endpoint streams live progress (files imported, skipped, errors) to the browser during scanning
 - **Per-user scan rate limiting** — configurable cooldown between scans (default 60s) to prevent resource exhaustion
 - **Auto genre classification** — customizable JSON catalog of 80+ rock/metal artists spanning the 1960s-2020s, mapping to Classic Rock, Hard Rock, Hair Metal, Heavy Metal, and Thrash Metal; user genre corrections are persisted and override the static catalog for future scans
-- **Duplicate detection & resolution** — skips files already imported by both file path and metadata (title + artist); paginated duplicates view to compare and delete duplicate tracks
+- **Duplicate detection & resolution** — skips files already imported by both file path and metadata (title + artist); paginated duplicates view to compare and delete duplicate tracks; optional file-hash–based duplicate detection to find exact copies regardless of metadata differences
 - **In-browser playback** — persistent audio player bar with play/pause, seek, volume, shuffle, and album art display; HTTP Range support for seeking in large files; auto-advances to next track
 - **Crossfade & gapless playback** — toggle crossfade (3-second fade between tracks) for seamless listening; uses dual audio elements for smooth transitions
 - **Queue management** — add tracks to an "Up Next" queue; queue drains before sequential/shuffle playback resumes; clear queue with one click; queue persists to MongoDB across sessions and devices (falls back to localStorage)
 - **Keyboard shortcuts** — Space to play/pause, left/right arrows to seek, up/down for volume (active when player is visible and no input is focused)
+- **Audio transcoding** — on-the-fly FLAC/M4A to MP3 conversion via ffmpeg; request `?format=mp3` on the transcode endpoint; gracefully degrades if ffmpeg is not installed
 - **Scheduled scans** — configure a cron expression and directory path per user; the system checks every 60 seconds and triggers scans when due
 
 ### Organization & Search
 - **Full-text search** — MongoDB text index across title (3x weight), artist (2x), and album (1x) with relevance scoring; falls back to regex search when text index is unavailable
 - **Playlist management** — create playlists, add/remove tracks, drag-drop reorder tracks, sort by title/artist/album/genre/rating/year, export as M3U or JSON; share playlists via read-only links
 - **Library export** — download full library metadata as JSON or CSV for backup
+- **Backup & restore** — full library backup (tracks, playlists, ratings, genre corrections, file hashes) as a single portable JSON file; restore on any instance to recreate your library metadata and playlists
 - **Library statistics** — genre distribution, top 10 artists, decade distribution, and average rating via MongoDB aggregation
 - **Soft delete / trash** — deleted tracks go to a 30-day trash instead of being permanently removed; restore or permanently delete from trash
 - **Advanced filtering** — simultaneous artist, album, and genre dropdown filters alongside full-text search; all filters combine with AND logic
@@ -35,12 +37,15 @@ Built with Spring Boot, MongoDB, and vanilla JavaScript.
 
 ### Administration & Security
 - **Multi-user** — per-user libraries with session-based (form login) and JWT authentication; 15-minute access tokens with 7-day refresh tokens; 30-minute idle session timeout (configurable via `SESSION_TIMEOUT`)
-- **Password reset** — token-based password reset flow with 15-minute one-time-use tokens; anti-enumeration response (always returns 200)
+- **Email verification** — optional email verification on signup (enable with `EMAIL_VERIFICATION_REQUIRED=true`); 24-hour verification tokens; resend verification endpoint; login blocked until verified; anti-enumeration responses
+- **Password reset** — token-based password reset flow with 15-minute one-time-use tokens; tokens are SHA-256 hashed before storage (raw token never persisted); anti-enumeration response (always returns 200)
 - **Account lockout** — accounts lock after 5 consecutive failed login attempts; auto-unlocks after 15 minutes; configurable thresholds; all refresh tokens are revoked on lockout
 - **Admin dashboard** — stats overview (users, files, playlists), paginated user management table with per-user file counts, delete user with cascade
 - **Distributed rate limiting** — pluggable `RateLimitStore` interface with in-memory (default) and Redis-backed implementations; auto-detects Redis on the classpath for multi-instance deployments
 - **Cover art storage quotas** — configurable per-user cover art quota (default 500 MB); quota checked during scan, extraction skipped when exceeded
 - **Request body size limits** — Tomcat max post size, max header size, and multipart limits configured to prevent oversized payloads
+- **Optimistic locking** — playlists use `@Version`-based optimistic locking to prevent lost updates from concurrent modifications; conflicts return 409 with a retry prompt
+- **Per-user scan locking** — only one scan can run per user at a time; concurrent scan attempts are rejected, preventing cover art quota race conditions
 - **Security** — CSRF protection (HttpOnly cookies with meta-tag delivery), rate limiting on auth and scan endpoints (with proxy-aware IP detection, trusted proxy validation, and `Retry-After` header), configurable CORS origins (explicit origins, not patterns), path traversal prevention on scan and stream endpoints, symlink detection, server-side input validation with typed DTOs, Content Security Policy headers (no `unsafe-inline` for scripts), Permissions-Policy header (disables geolocation, microphone, camera, payment, USB), password complexity requirements (enforced on both signup and password reset), case-insensitive username normalization (prevents `User`/`user` duplicates), JWT with `jti`/`iss` claims and full role propagation on token refresh, token blacklisting on logout, regex search query timeout (5s) and length limit (200 chars)
 - **RFC 7807 error responses** — all API error responses follow the Problem Details standard (`type`, `title`, `status`, `detail`) with backwards-compatible `error` property
 - **Audit logging** — dedicated `AUDIT` logger routed to a separate `logs/audit.log` file with 90-day retention; structured MDC context tracks all security-sensitive operations: logins, signups, password resets, file deletions, genre changes, playlist modifications, and admin actions
@@ -67,6 +72,7 @@ Built with Spring Boot, MongoDB, and vanilla JavaScript.
 | Java JDK | 17+ | [Adoptium Temurin](https://adoptium.net) recommended |
 | Apache Maven | 3.6+ | Or use `mvn` if installed globally |
 | MongoDB | 6.0+ | Must be running before the app starts |
+| ffmpeg | 5.0+ | *Optional* — required only for audio transcoding (`/transcode` endpoint) |
 
 ### Installing MongoDB
 
@@ -199,6 +205,7 @@ All settings live in `src/main/resources/application.properties` and can be over
 | `stellar.grooves.scan.cooldownSeconds` | `SCAN_COOLDOWN_SECONDS` | `60` | Per-user cooldown between scans |
 | `stellar.grooves.scan.perFileTimeoutSeconds` | `SCAN_PER_FILE_TIMEOUT_SECONDS` | `30` | Timeout for reading a single audio file |
 | `stellar.grooves.scan.fileReaderThreads` | `SCAN_FILE_READER_THREADS` | `2` | Thread pool size for audio file reading during scans |
+| `stellar.grooves.scan.supportedExtensions` | `SCAN_SUPPORTED_EXTENSIONS` | `.mp3,.m4a,.flac` | Comma-separated list of audio file extensions to scan (add `.ogg`, `.wav`, `.opus`, etc.) |
 | `stellar.grooves.coverArt.maxBytesPerUser` | `COVER_ART_QUOTA_BYTES` | `524288000` (500 MB) | Per-user cover art storage quota |
 | `stellar.grooves.catalogPath` | — | *(bundled catalog.json)* | Path to a custom artist-genre catalog JSON file |
 
@@ -210,6 +217,19 @@ All settings live in `src/main/resources/application.properties` and can be over
 | `server.max-http-request-header-size` | `16KB` | Maximum request header size |
 | `spring.servlet.multipart.max-file-size` | `2MB` | Maximum multipart file size |
 | `spring.servlet.multipart.max-request-size` | `2MB` | Maximum multipart request size |
+
+### Email Verification
+
+| Property | Env var | Default | Description |
+|----------|---------|---------|-------------|
+| `stellar.grooves.email.verificationRequired` | `EMAIL_VERIFICATION_REQUIRED` | `false` | Require email verification before login |
+| `stellar.grooves.mail.enabled` | `MAIL_ENABLED` | `false` | Enable sending emails (verification + password reset) |
+| `stellar.grooves.mail.from` | `MAIL_FROM` | `noreply@stellargrooves.local` | Sender address for emails |
+| `stellar.grooves.baseUrl` | `BASE_URL` | `http://localhost:8080` | Base URL used in email links |
+
+When `EMAIL_VERIFICATION_REQUIRED=true`, new users receive a verification email with a 24-hour link. Login is blocked until the email is verified. When disabled (default), accounts are automatically verified on creation for backward compatibility.
+
+> **Note:** Email verification requires `MAIL_ENABLED=true` and valid SMTP settings. When mail is disabled, verification tokens are logged at INFO level for development use.
 
 ### Spring Profiles
 
@@ -300,10 +320,12 @@ The JSON format maps artist names to arrays of genre values:
 13. Deleted tracks go to trash — restore them or empty trash to permanently remove.
 14. Click the "Duplicated Songs" stat card to review and resolve duplicate tracks (paginated).
 15. Export playlists as M3U or JSON, or export your entire library as JSON/CSV from the library view.
-16. Set up a scheduled scan to auto-import new files on a cron schedule.
-17. Toggle light/dark mode with the sun/moon button in the navbar.
-18. Admin users can access the admin dashboard at **/admin** to manage users.
-19. Browse the interactive API documentation at **/swagger-ui.html** (dev mode only).
+16. Use the hash-based duplicates view to find exact file copies across different folders.
+17. Back up your entire library (tracks + playlists + ratings) via the backup endpoint — restore it on any instance.
+18. Set up a scheduled scan to auto-import new files on a cron schedule.
+19. Toggle light/dark mode with the sun/moon button in the navbar.
+20. Admin users can access the admin dashboard at **/admin** to manage users.
+21. Browse the interactive API documentation at **/swagger-ui.html** (dev mode only).
 
 ---
 
@@ -340,6 +362,8 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 | `POST` | `/api/v1/auth/logout` | — | Blacklist the current JWT and delete refresh tokens (requires `Authorization: Bearer` header) |
 | `POST` | `/api/v1/auth/password-reset/request` | `{ "email": "..." }` | Request a password reset token (always returns 200 to prevent enumeration; token logged at INFO) |
 | `POST` | `/api/v1/auth/password-reset/execute` | `{ "token": "...", "newPassword": "..." }` | Reset password using a valid one-time token (15-min expiry); same complexity requirements as signup |
+| `GET` | `/api/v1/auth/verify-email?token=...` | — | Verify email address using a 24-hour token (sent on signup when verification is enabled) |
+| `POST` | `/api/v1/auth/resend-verification` | `{ "email": "..." }` | Resend verification email (always returns 200 to prevent enumeration) |
 
 ### Library
 
@@ -350,11 +374,13 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 | `POST` | `/api/v1/library/scan` | `{ "path": "/absolute/path" }` | Scan a directory; returns `{ filesFound, skipped, errors, errorDetails }`; rate-limited per user |
 | `GET` | `/api/v1/library/scan/progress` | — | SSE stream of scan progress events (`progress`, `complete`, `error`) |
 | `GET` | `/api/v1/library/files/{id}/stream` | — | Stream audio (supports HTTP Range) |
+| `GET` | `/api/v1/library/files/{id}/transcode?format=mp3` | — | Stream audio transcoded to MP3 via ffmpeg (returns 503 if ffmpeg not installed) |
 | `GET` | `/api/v1/library/files/{id}/cover` | — | Get album cover art (30-day cache) |
 | `PATCH` | `/api/v1/library/files/{id}/genre` | `{ "genre": "CLASSIC_ROCK" }` | Update a track's genre; records a correction for the artist so future scans use this genre |
 | `PATCH` | `/api/v1/library/files/{id}/rating` | `{ "rating": 4 }` | Set track rating (0-5, 0 = unrated) |
 | `POST` | `/api/v1/library/files/bulk-delete` | `{ "fileIds": ["id1", "id2"] }` | Soft-delete tracks (max 100); moves to trash |
-| `GET` | `/api/v1/library/duplicates` | — | Get duplicate track groups (paginated); `?page=0&size=50` |
+| `GET` | `/api/v1/library/duplicates` | — | Get duplicate track groups by title+artist (paginated); `?page=0&size=50` |
+| `GET` | `/api/v1/library/duplicates/by-hash` | — | Get duplicate track groups by file hash (paginated); `?page=0&size=50` |
 | `DELETE` | `/api/v1/library/files/{id}` | — | Soft-delete a single track (moves to trash) |
 | `DELETE` | `/api/v1/library/files` | — | Clear the current user's entire library |
 | `GET` | `/api/v1/library/trash` | — | List tracks in trash |
@@ -364,6 +390,8 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 | `GET` | `/api/v1/library/stats` | — | Library statistics: genre/artist/decade distribution, average rating |
 | `GET` | `/api/v1/library/export?format=json` | — | Export full library metadata as JSON (attachment download) |
 | `GET` | `/api/v1/library/export?format=csv` | — | Export full library metadata as CSV (attachment download) |
+| `GET` | `/api/v1/library/backup` | — | Full library backup as JSON (tracks + playlists + ratings + file hashes) |
+| `POST` | `/api/v1/library/restore` | `LibraryBackup JSON` | Restore library from a backup; skips existing tracks by file path; recreates playlists |
 | `GET` | `/api/v1/library/queue` | — | Get the user's persisted playback queue |
 | `PUT` | `/api/v1/library/queue` | `{ "trackIds", "currentTrackId", "shuffle" }` | Save the playback queue |
 | `DELETE` | `/api/v1/library/queue` | — | Clear the playback queue |
@@ -398,7 +426,7 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/v1/admin/stats` | System stats: `{ totalUsers, totalFiles, totalPlaylists }` |
-| `GET` | `/api/v1/admin/users` | List users with file counts; `?page=0&size=25` |
+| `GET` | `/api/v1/admin/users` | List users with file counts; `?page=0&size=50` |
 | `GET` | `/api/v1/admin/users/{id}` | Get a single user |
 | `DELETE` | `/api/v1/admin/users/{id}` | Delete a user and all their data (files, playlists, cover art, queue) |
 
@@ -418,33 +446,36 @@ src/main/java/com/stellarideas/grooves/
 │   ├── OpenApiConfig.java               # Swagger/OpenAPI configuration
 │   ├── RateLimitConfig.java             # Auto-selects Redis or in-memory rate limiting
 │   ├── RateLimitFilter.java             # Per-IP rate limiting (proxy-aware, Retry-After)
+│   ├── PaginationDefaults.java          # Centralized pagination constants (default/max page sizes)
 │   ├── RateLimitStore.java              # Rate limiting interface (pluggable backend)
 │   ├── RedisRateLimitStore.java         # Redis-backed rate limiting (distributed)
 │   ├── RequestCorrelationFilter.java    # MDC correlation ID for request tracing
 │   └── WebConfig.java                   # Registers @CurrentUser argument resolver
 ├── controller/
-│   ├── AuthController.java              # Signup/signin/logout/refresh/password-reset endpoints
-│   ├── LibraryController.java           # Library CRUD + streaming + search + scan + queue + duplicates + cover art + trash + export + stats
+│   ├── AuthController.java              # Signup/signin/logout/refresh/password-reset/email-verification endpoints
+│   ├── LibraryController.java           # Library CRUD + streaming + transcoding + search + scan + queue + duplicates + cover art + trash + export + backup/restore + stats
 │   ├── PlaylistController.java          # Playlist management + reorder + export + sharing
 │   ├── SharedPlaylistController.java    # Public read-only shared playlist access
 │   ├── AdminController.java             # Admin stats + user management
 │   ├── ViewController.java              # Thymeleaf page routes (/, /login, /signup, /admin)
 │   └── GlobalExceptionHandler.java      # RFC 7807 Problem Details error handling
 ├── model/
-│   ├── User.java                        # User document (with scan schedule fields)
-│   ├── MusicFile.java                   # Track document (with rating, hasCoverArt, soft delete)
-│   ├── Playlist.java                    # Playlist document (with shareToken)
+│   ├── User.java                        # User document (with scan schedule fields, emailVerified flag)
+│   ├── MusicFile.java                   # Track document (with rating, hasCoverArt, fileHash, soft delete)
+│   ├── Playlist.java                    # Playlist document (with shareToken, @Version optimistic locking)
+│   ├── EmailVerificationToken.java      # Email verification tokens (SHA-256 hashed, 24h TTL)
 │   ├── PlaybackQueue.java               # Persisted playback queue (per user)
 │   ├── CoverArt.java                    # Album cover art storage (binary, quota-managed)
 │   ├── BlacklistedToken.java            # Revoked JWT tokens (TTL-indexed)
 │   ├── RefreshToken.java                # Long-lived refresh tokens (TTL-indexed)
-│   ├── PasswordResetToken.java          # One-time password reset tokens (TTL-indexed)
+│   ├── PasswordResetToken.java          # One-time password reset tokens (SHA-256 hashed, TTL-indexed)
 │   ├── Genre.java                       # Genre enum
 │   ├── GenreCorrection.java             # User genre corrections (artist -> genre override)
 │   └── Role.java                        # Role enum
 ├── dto/
 │   ├── AddTrackRequest.java             # Add track to playlist
 │   ├── BulkDeleteRequest.java           # Bulk delete tracks (validated, max 100)
+│   ├── LibraryBackup.java               # Full backup structure (tracks + playlists + ratings + hashes)
 │   ├── CreatePlaylistRequest.java       # Create playlist (validated)
 │   ├── LoginRequest.java                # Login validation
 │   ├── MusicFileDTO.java                # Track response (with rating + cover art flag)
@@ -465,8 +496,9 @@ src/main/java/com/stellarideas/grooves/
 │   ├── CoverArtRepository.java          # Includes cover art size aggregation for quotas
 │   ├── GenreCorrectionRepository.java
 │   ├── MusicFileRepository.java         # Includes regex search, soft-delete filtering
-│   ├── MusicFileRepositoryCustom.java   # Custom aggregation interface (duplicates, text search, statistics)
+│   ├── MusicFileRepositoryCustom.java   # Custom aggregation interface (duplicates, hash duplicates, text search, statistics)
 │   ├── MusicFileRepositoryCustomImpl.java # MongoDB aggregation implementations
+│   ├── EmailVerificationTokenRepository.java
 │   ├── PasswordResetTokenRepository.java
 │   ├── PlaybackQueueRepository.java     # Playback queue persistence
 │   ├── PlaylistRepository.java          # Includes findByShareToken
@@ -482,14 +514,15 @@ src/main/java/com/stellarideas/grooves/
 │   └── UserDetailsServiceImpl.java      # User loading service
 └── service/
     ├── AuditService.java                # Structured audit logging (AUDIT logger + MDC)
-    ├── LibraryService.java              # Library business logic (CRUD, search, trash, export, stats)
+    ├── EmailVerificationService.java     # Email verification email delivery
+    ├── LibraryService.java              # Library business logic (CRUD, search, trash, export, backup/restore, stats)
     ├── LoginAttemptService.java         # Failed login tracking + account lockout
     ├── MessageHelper.java               # Shared i18n message resolution
     ├── MusicCatalogService.java         # Artist -> genre mapping (JSON catalog + user corrections)
-    ├── MusicScannerService.java         # Directory scanning + batch import + per-file timeout + cover art extraction
+    ├── MusicScannerService.java         # Directory scanning + batch import + per-file timeout + file hashing + cover art extraction
     ├── PasswordResetMailService.java     # Password reset email delivery
     ├── PlaylistService.java             # Playlist business logic (CRUD, sharing, track management)
-    ├── ScanProgressEmitter.java         # SSE emitter for real-time scan progress
+    ├── ScanProgressEmitter.java         # SSE emitter for real-time scan progress (with scheduled stale cleanup)
     ├── ScanRateLimiter.java             # Per-user scan cooldown
     └── ScheduledScanService.java        # Cron-based automatic directory scanning
 
@@ -515,7 +548,7 @@ docker-compose.yml                       # App + MongoDB (optional Redis)
 .dockerignore                            # Build context exclusions
 ```
 
-**383 unit tests** across all layers (79% line coverage). JaCoCo coverage reports generated at `target/site/jacoco/index.html` with a **60% minimum line coverage** threshold enforced at the `verify` phase.
+**392 unit tests** across all layers. JaCoCo coverage reports generated at `target/site/jacoco/index.html` with a **60% minimum line coverage** threshold enforced at the `verify` phase.
 
 ---
 
@@ -534,7 +567,7 @@ docker-compose.yml                       # App + MongoDB (optional Redis)
 | Containerization | Docker (multi-stage) + Docker Compose |
 | Build | Maven 3 |
 | Runtime | Java 17 |
-| Testing | JUnit 5 + Mockito + JaCoCo (60% min, 79% actual) + Testcontainers (383 tests) |
+| Testing | JUnit 5 + Mockito + JaCoCo (60% min) + Testcontainers (392 tests) |
 | Code quality | Spotless (Google Java Format) + OWASP Dependency Check (build lifecycle) |
 
 ---
