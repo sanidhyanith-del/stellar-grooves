@@ -245,6 +245,7 @@ function renderArtistsView() {
         tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
         tbody.appendChild(tr);
     });
+    renderJukeboxPanels();
 }
 
 let albumViewMode = 'grid';
@@ -321,6 +322,7 @@ function renderAlbumsView() {
             tbody.appendChild(tr);
         });
     }
+    renderJukeboxPanels();
 }
 
 // Album view toggle
@@ -668,6 +670,7 @@ async function serverSearch(query) {
         updateTrackCount();
         if (cachedVisibleTracks.length <= VIRTUAL_THRESHOLD) { cachedVisibleTracks.forEach(f => tbody.appendChild(buildTrackRow(f))); }
         else { renderVirtualSlice(); }
+        renderJukeboxPanels();
         const parts = [];
         if (query) parts.push(`"${query}"`);
         if (genre) parts.push(genre);
@@ -783,7 +786,7 @@ async function renderPlaylistView() {
     try {
         const r = await fetch(`/api/v1/playlists/${nav.playlistId}/tracks`); if (!r.ok) return;
         let tracks = await r.json();
-        if (tracks.length === 0) { empty.classList.remove('d-none'); return; }
+        if (tracks.length === 0) { empty.classList.remove('d-none'); renderJukeboxPanels([]); return; }
 
         // Apply sort
         const sortBy = document.getElementById('playlistSort').value;
@@ -795,6 +798,7 @@ async function renderPlaylistView() {
                 return av.localeCompare(bv);
             });
         }
+        renderJukeboxPanels(tracks);
 
         const isDraggable = sortBy === 'custom';
         tracks.forEach(file => {
@@ -895,23 +899,33 @@ function getPlayableTrackList() {
 function openCoverArtLightbox(src, album, artist) { SG.openCoverArtLightbox(src, album, artist); }
 
 // ── Jukebox side panels (2700-style selection lists) ─────
-function renderJukeboxPanels() {
+function renderJukeboxPanels(tracksOverride) {
     const listL = document.getElementById('jukeboxListL');
     const listR = document.getElementById('jukeboxListR');
     if (!listL || !listR) return;
     listL.innerHTML = ''; listR.innerHTML = '';
-    const tracks = cachedVisibleTracks.length > 0 ? cachedVisibleTracks : allFiles;
+    let tracks;
+    if (tracksOverride !== undefined) {
+        tracks = tracksOverride;
+    } else if (nav.view === 'albums' && nav.artist) {
+        tracks = allFiles.filter(f => (f.artist || '(Unknown)') === nav.artist);
+    } else if (nav.view === 'artists' || nav.view === 'albums') {
+        tracks = allFiles;
+    } else {
+        tracks = cachedVisibleTracks.length > 0 ? cachedVisibleTracks : allFiles;
+    }
     if (tracks.length === 0) {
         listL.innerHTML = '<li class="wurl-side-empty">No songs loaded</li>';
         listR.innerHTML = '<li class="wurl-side-empty">No songs loaded</li>';
         return;
     }
     const mid = Math.ceil(tracks.length / 2);
-    const buildItem = (file, idx) => {
+    const buildItem = (file, idx, localIdx) => {
         const li = document.createElement('li');
         li.className = 'wurl-side-item' + (SG.currentFileId === file.id ? ' wurl-side-active' : '');
         li.dataset.fileId = file.id;
         li.setAttribute('role', 'button'); li.setAttribute('tabindex', '0');
+        li.style.setProperty('--sg-i', Math.min(localIdx, 40));
         const num = document.createElement('span'); num.className = 'wurl-side-num';
         num.textContent = String(idx + 1).padStart(2, '0');
         const info = document.createElement('div');
@@ -924,8 +938,8 @@ function renderJukeboxPanels() {
         li.appendChild(num); li.appendChild(info);
         return li;
     };
-    for (let i = 0; i < mid; i++) listL.appendChild(buildItem(tracks[i], i));
-    for (let i = mid; i < tracks.length; i++) listR.appendChild(buildItem(tracks[i], i));
+    for (let i = 0; i < mid; i++) listL.appendChild(buildItem(tracks[i], i, i));
+    for (let i = mid; i < tracks.length; i++) listR.appendChild(buildItem(tracks[i], i, i - mid));
 }
 
 // Click + keyboard handler for side panels
@@ -936,7 +950,16 @@ function handleSideItemActivate(e) {
     if (!item) return;
     const fid = item.dataset.fileId;
     const file = allFiles.find(f => f.id === fid);
-    if (file) { clearPlaylistContext(); playTrack(file); renderJukeboxPanels(); }
+    if (!file) return;
+    if (nav.view === 'playlist' && nav.playlistId) {
+        // Stay in the playlist playback context so next-track follows the playlist
+        const rows = document.querySelectorAll('#playlistTracksBody tr[data-file-id]');
+        const tracks = Array.from(rows).map(r => fileById(r.dataset.fileId) || { id: r.dataset.fileId });
+        setPlaylistContext(nav.playlistId, nav.playlistName, tracks);
+    } else {
+        clearPlaylistContext();
+    }
+    playTrack(file);
 }
 document.addEventListener('click', handleSideItemActivate);
 document.addEventListener('keydown', handleSideItemActivate);
