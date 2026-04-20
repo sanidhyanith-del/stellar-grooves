@@ -7,6 +7,7 @@ import com.stellarideas.grooves.repository.PlaylistRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -46,6 +47,7 @@ public class TrashPurgeService {
     @Value("${stellar.grooves.trash.retentionDays:30}")
     private int retentionDays;
 
+    @Autowired
     public TrashPurgeService(MusicFileRepository musicFileRepository,
                              PlaylistRepository playlistRepository,
                              MongoTemplate mongoTemplate) {

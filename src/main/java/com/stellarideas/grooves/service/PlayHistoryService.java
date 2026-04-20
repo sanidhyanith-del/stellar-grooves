@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +39,7 @@ public class PlayHistoryService {
     private final MongoTemplate mongoTemplate;
     private final Clock clock;
 
+    @Autowired
     public PlayHistoryService(PlayEventRepository playEventRepository,
                               MusicFileRepository musicFileRepository,
                               MongoTemplate mongoTemplate) {
