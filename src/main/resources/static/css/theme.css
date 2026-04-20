@@ -354,6 +354,24 @@ a:hover {
 }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(255,209,102,0.5), rgba(139,105,21,0.4)); }
 
+/* Light-mode scrollbar — brass tones on cream; the dark thumb reads as dirt. */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(184, 141, 42, 0.55), rgba(139, 98, 54, 0.45));
+    border: 1px solid rgba(139, 98, 54, 0.25);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, rgba(200, 116, 32, 0.75), rgba(139, 98, 54, 0.6));
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(184, 141, 42, 0.55), rgba(139, 98, 54, 0.45));
+        border: 1px solid rgba(139, 98, 54, 0.25);
+    }
+    :root:not([data-theme="dark"]) ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(200, 116, 32, 0.75), rgba(139, 98, 54, 0.6));
+    }
+}
+
 /* Focus */
 :focus-visible {
     outline: 2px solid var(--focus-ring);
@@ -403,7 +421,7 @@ a:hover {
         --ruby-deep: #7a1a0f;
         --amber: #c87420;
         --amber-hot: #e08820;
-        --honey: #a67420;
+        --honey: #b88d2a;   /* was #a67420 — shifted to brass-gold so links/nav read distinct from amber */
         --tungsten: #6f4a26;
 
         --bg-primary: var(--ink-0);
@@ -424,9 +442,11 @@ a:hover {
         --neon-cyan: var(--honey);
         --neon-blue: var(--amber);
 
-        --glow-ruby:  0 0 6px rgba(184, 50, 28, 0.25);
-        --glow-amber: 0 0 6px rgba(200, 116, 32, 0.28);
-        --glow-honey: 0 0 6px rgba(166, 116, 32, 0.3);
+        /* Light-mode glows — color-tinted drop shadows (blur vanishes on cream,
+           so we lead with a 1px edge + a wider colored underlay). */
+        --glow-ruby:  0 1px 0 rgba(122, 26, 15, 0.25),  0 4px 14px rgba(184, 50, 28, 0.35);
+        --glow-amber: 0 1px 0 rgba(106, 75, 18, 0.25),  0 4px 14px rgba(200, 116, 32, 0.40);
+        --glow-honey: 0 1px 0 rgba(106, 75, 18, 0.25),  0 4px 14px rgba(184, 141, 42, 0.35);
         --glow-red: var(--glow-ruby);
         --glow-orange: var(--glow-amber);
         --glow-gold: var(--glow-honey);
@@ -445,19 +465,37 @@ a:hover {
         --shadow-chrome: 0 1px 3px rgba(120, 82, 40, 0.25), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,0,0,0.08);
         --shadow: var(--shadow-panel);
 
+        /* Light-mode textures — re-tuned from dark (was all `none`). Keeps the
+           Analog Revival DNA in daylight: paper grain, faint wood, warm film noise. */
         --grain:
-            radial-gradient(circle at 13% 27%, rgba(200, 116, 32, 0.05), transparent 40%),
-            radial-gradient(circle at 81% 63%, rgba(184, 50, 28, 0.05), transparent 40%);
-        --wood-grain: none;
-        --film-noise: none;
+            radial-gradient(circle at 13% 27%, rgba(200, 116, 32, 0.07), transparent 40%),
+            radial-gradient(circle at 81% 63%, rgba(184, 50, 28, 0.06), transparent 40%),
+            radial-gradient(circle at 55% 95%, rgba(166, 116, 32, 0.05), transparent 50%);
+        --wood-grain: repeating-linear-gradient(
+            92deg,
+            transparent 0 3px,
+            rgba(139, 98, 54, 0.035) 3px 4px);
+        --film-noise:
+            repeating-radial-gradient(circle at 10% 20%, rgba(139, 98, 54, 0.025) 0 1px, transparent 1px 3px),
+            repeating-radial-gradient(circle at 70% 40%, rgba(139, 98, 54, 0.018) 0 1px, transparent 1px 4px);
     }
     :root:not([data-theme="dark"]) body {
         background-image:
-            radial-gradient(ellipse 70% 50% at 18% 12%, rgba(200, 116, 32, 0.10), transparent 62%),
-            radial-gradient(ellipse 90% 60% at 85% 90%, rgba(184, 50, 28, 0.08), transparent 65%),
-            linear-gradient(180deg, #f8efd8 0%, #f3e7c8 100%);
+            /* tungsten "stage light" pouring in top-left */
+            radial-gradient(ellipse 80% 55% at 20% 0%, rgba(255, 209, 102, 0.28), transparent 60%),
+            /* amber wash bottom-right */
+            radial-gradient(ellipse 90% 60% at 85% 95%, rgba(200, 116, 32, 0.14), transparent 60%),
+            /* soft cream halo center — gives the page a lit-stage feel */
+            radial-gradient(ellipse 60% 30% at 50% 50%, rgba(255, 245, 220, 0.5), transparent 70%),
+            var(--grain),
+            var(--wood-grain),
+            linear-gradient(180deg, #fbf4e3 0%, #f0e2c2 55%, #e5d2a9 100%);
     }
-    :root:not([data-theme="dark"]) body::before { display: none; }
+    :root:not([data-theme="dark"]) body::before {
+        background: var(--film-noise);
+        mix-blend-mode: multiply;
+        opacity: 0.35;
+    }
 }
 
 [data-theme="light"] {
@@ -484,7 +522,7 @@ a:hover {
     --ruby-deep: #7a1a0f;
     --amber: #c87420;
     --amber-hot: #e08820;
-    --honey: #a67420;
+    --honey: #b88d2a;   /* was #a67420 — shifted to brass-gold so links/nav read distinct from amber */
     --tungsten: #6f4a26;
 
     --bg-primary: var(--ink-0);
@@ -505,9 +543,11 @@ a:hover {
     --neon-cyan: var(--honey);
     --neon-blue: var(--amber);
 
-    --glow-ruby:  0 0 6px rgba(184, 50, 28, 0.25);
-    --glow-amber: 0 0 6px rgba(200, 116, 32, 0.28);
-    --glow-honey: 0 0 6px rgba(166, 116, 32, 0.3);
+    /* Light-mode glows — color-tinted drop shadows (blur vanishes on cream,
+       so we lead with a 1px edge + a wider colored underlay). */
+    --glow-ruby:  0 1px 0 rgba(122, 26, 15, 0.25),  0 4px 14px rgba(184, 50, 28, 0.35);
+    --glow-amber: 0 1px 0 rgba(106, 75, 18, 0.25),  0 4px 14px rgba(200, 116, 32, 0.40);
+    --glow-honey: 0 1px 0 rgba(106, 75, 18, 0.25),  0 4px 14px rgba(184, 141, 42, 0.35);
     --glow-red: var(--glow-ruby);
     --glow-orange: var(--glow-amber);
     --glow-gold: var(--glow-honey);
@@ -526,45 +566,66 @@ a:hover {
     --shadow-chrome: 0 1px 3px rgba(120, 82, 40, 0.25), inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,0,0,0.08);
     --shadow: var(--shadow-panel);
 
+    /* Light-mode textures — re-tuned from dark (was all `none`). Keeps the
+       Analog Revival DNA in daylight: paper grain, faint wood, warm film noise. */
     --grain:
-        radial-gradient(circle at 13% 27%, rgba(200, 116, 32, 0.05), transparent 40%),
-        radial-gradient(circle at 81% 63%, rgba(184, 50, 28, 0.05), transparent 40%);
-    --wood-grain: none;
-    --film-noise: none;
+        radial-gradient(circle at 13% 27%, rgba(200, 116, 32, 0.07), transparent 40%),
+        radial-gradient(circle at 81% 63%, rgba(184, 50, 28, 0.06), transparent 40%),
+        radial-gradient(circle at 55% 95%, rgba(166, 116, 32, 0.05), transparent 50%);
+    --wood-grain: repeating-linear-gradient(
+        92deg,
+        transparent 0 3px,
+        rgba(139, 98, 54, 0.035) 3px 4px);
+    --film-noise:
+        repeating-radial-gradient(circle at 10% 20%, rgba(139, 98, 54, 0.025) 0 1px, transparent 1px 3px),
+        repeating-radial-gradient(circle at 70% 40%, rgba(139, 98, 54, 0.018) 0 1px, transparent 1px 4px);
 }
 [data-theme="light"] body {
     background-image:
-        radial-gradient(ellipse 70% 50% at 18% 12%, rgba(200, 116, 32, 0.10), transparent 62%),
-        radial-gradient(ellipse 90% 60% at 85% 90%, rgba(184, 50, 28, 0.08), transparent 65%),
-        linear-gradient(180deg, #f8efd8 0%, #f3e7c8 100%);
+        /* tungsten "stage light" pouring in top-left */
+        radial-gradient(ellipse 80% 55% at 20% 0%, rgba(255, 209, 102, 0.28), transparent 60%),
+        /* amber wash bottom-right */
+        radial-gradient(ellipse 90% 60% at 85% 95%, rgba(200, 116, 32, 0.14), transparent 60%),
+        /* soft cream halo center — gives the page a lit-stage feel */
+        radial-gradient(ellipse 60% 30% at 50% 50%, rgba(255, 245, 220, 0.5), transparent 70%),
+        var(--grain),
+        var(--wood-grain),
+        linear-gradient(180deg, #fbf4e3 0%, #f0e2c2 55%, #e5d2a9 100%);
 }
-[data-theme="light"] body::before { display: none; }
+[data-theme="light"] body::before {
+    background: var(--film-noise);
+    mix-blend-mode: multiply;
+    opacity: 0.35;
+}
 
 /* Light mode: soften the bevel so it reads as brushed chrome, not OS chrome */
 [data-theme="light"] {
-    --bevel-hi: rgba(255, 255, 255, 0.85);
-    --bevel-md: rgba(255, 255, 255, 0.45);
-    --bevel-lo: rgba(90, 60, 30, 0.25);
-    --bevel-xlo: rgba(60, 40, 20, 0.35);
+    /* Bevel highlights were near-white (0.85) — dialed back to read as metal,
+       not Windows 95. Shadow side pulled slightly to keep edge contrast. */
+    --bevel-hi:  rgba(255, 255, 255, 0.55);
+    --bevel-md:  rgba(255, 255, 255, 0.28);
+    --bevel-lo:  rgba(90, 60, 30, 0.18);
+    --bevel-xlo: rgba(60, 40, 20, 0.28);
     --led-green: #2f9e60;
     --led-green-glow: rgba(47, 158, 96, 0.35);
     --led-amber: #b8811f;
     --led-amber-glow: rgba(184, 129, 31, 0.35);
     --led-red: #b8321c;
     --led-red-glow: rgba(184, 50, 28, 0.3);
+    /* Cool-cast chrome — a true brushed-metal gradient, not beige sandpaper. */
     --chrome-plate: linear-gradient(180deg,
-        #faf2de 0%,
-        #e6d6b8 20%,
-        #c4b092 52%,
-        #d7c6a3 54%,
-        #e6d6b8 100%);
+        #f8f4ec 0%,
+        #d9d3c4 22%,
+        #b4ad9e 52%,
+        #cac2b1 54%,
+        #e6dfcc 100%);
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-        --bevel-hi: rgba(255, 255, 255, 0.85);
-        --bevel-md: rgba(255, 255, 255, 0.45);
-        --bevel-lo: rgba(90, 60, 30, 0.25);
-        --bevel-xlo: rgba(60, 40, 20, 0.35);
+        --bevel-hi:  rgba(255, 255, 255, 0.55);
+        --bevel-md:  rgba(255, 255, 255, 0.28);
+        --bevel-lo:  rgba(90, 60, 30, 0.18);
+        --bevel-xlo: rgba(60, 40, 20, 0.28);
         --led-green: #2f9e60;
         --led-green-glow: rgba(47, 158, 96, 0.35);
         --led-amber: #b8811f;
@@ -572,11 +633,11 @@ a:hover {
         --led-red: #b8321c;
         --led-red-glow: rgba(184, 50, 28, 0.3);
         --chrome-plate: linear-gradient(180deg,
-            #faf2de 0%,
-            #e6d6b8 20%,
-            #c4b092 52%,
-            #d7c6a3 54%,
-            #e6d6b8 100%);
+            #f8f4ec 0%,
+            #d9d3c4 22%,
+            #b4ad9e 52%,
+            #cac2b1 54%,
+            #e6dfcc 100%);
         --mtv-magenta: #c4166e;
         --mtv-magenta-hot: #d83088;
         --mtv-magenta-glow: rgba(196, 22, 110, 0.3);
