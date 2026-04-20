@@ -919,7 +919,6 @@ function renderJukeboxPanels(tracksOverride) {
         listR.innerHTML = '<li class="wurl-side-empty">No songs loaded</li>';
         return;
     }
-    const mid = Math.ceil(tracks.length / 2);
     const buildItem = (file, idx, localIdx) => {
         const li = document.createElement('li');
         li.className = 'wurl-side-item' + (SG.currentFileId === file.id ? ' wurl-side-active' : '');
@@ -938,9 +937,34 @@ function renderJukeboxPanels(tracksOverride) {
         li.appendChild(num); li.appendChild(info);
         return li;
     };
-    for (let i = 0; i < mid; i++) listL.appendChild(buildItem(tracks[i], i, i));
-    for (let i = mid; i < tracks.length; i++) listR.appendChild(buildItem(tracks[i], i, i - mid));
+    // On mobile, collapse into a single unified list in the left panel
+    // (the right panel is hidden via CSS at <= 991.98px).
+    const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    if (isMobile) {
+        for (let i = 0; i < tracks.length; i++) listL.appendChild(buildItem(tracks[i], i, i));
+    } else {
+        const mid = Math.ceil(tracks.length / 2);
+        for (let i = 0; i < mid; i++) listL.appendChild(buildItem(tracks[i], i, i));
+        for (let i = mid; i < tracks.length; i++) listR.appendChild(buildItem(tracks[i], i, i - mid));
+    }
 }
+
+// Re-render jukebox panels on viewport crossing the mobile breakpoint
+(function setupJukeboxResponsiveRerender() {
+    let wasMobile = window.matchMedia('(max-width: 991.98px)').matches;
+    let rafId = null;
+    window.addEventListener('resize', () => {
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+            rafId = null;
+            const isMobile = window.matchMedia('(max-width: 991.98px)').matches;
+            if (isMobile !== wasMobile) {
+                wasMobile = isMobile;
+                renderJukeboxPanels();
+            }
+        });
+    });
+})();
 
 // Click + keyboard handler for side panels
 function handleSideItemActivate(e) {

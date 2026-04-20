@@ -1,11 +1,16 @@
-/* =============================================
-   Stellar Grooves – Main Stylesheet
-   Modular CSS architecture:
-     theme.css      — Variables, reset, base, light/dark mode
-     components.css — UI components (navbar, cards, forms, tables, etc.)
-     jukebox.css    — Wurlitzer 1015 player styling
-   ============================================= */
+/* ============================================================
+   Stellar Grooves — Main stylesheet
+   "Analog Revival" design system — warm walnut, brushed chrome,
+   amber spotlight, ruby glow.
+
+   Load order matters:
+     theme.css       — tokens, fonts, base, light/dark modes
+     components.css  — UI primitives (cards, buttons, tables…)
+     layout.css      — page compositions (dashboard, auth, help)
+     jukebox.css     — Wurlitzer player (preserved)
+   ============================================================ */
 
 @import url('theme.css');
 @import url('components.css');
+@import url('layout.css');
 @import url('jukebox.css');
