@@ -34,7 +34,8 @@ Built with Spring Boot, MongoDB, and vanilla JavaScript.
 - **Bulk operations** — checkbox selection with select-all toggle; bulk delete and bulk add-to-playlist
 - **User ratings** — 5-star rating widget on each track; sortable by rating
 - **Inline genre editing** — reclassify any track tagged as "Other" directly from the library table
-- **Play history tracking** — every track that reaches 50% of its duration (or plays to completion) is recorded as a `PlayEvent`; per-track play counts and last-played timestamps are denormalized onto each track to power future rediscovery features (smart playlists, "haven't played in 6 months," top-played views); seeks are excluded from listened-time via a wall-clock vs playback-position check
+- **Play history tracking** — every track that reaches 50% of its duration (or plays to completion) is recorded as a `PlayEvent`; per-track play counts and last-played timestamps are denormalized onto each track; seeks are excluded from listened-time via a wall-clock vs playback-position check
+- **Listening History view** — dedicated sidebar entry surfacing Recently Played, Top Tracks, and Top Artists; each tab supports a time window (All Time / 7 Days / 30 Days / Last Year); Top Artists rows drill into the artist's albums; aggregations backed by `$group` over `PlayEvent`
 - **Virtual scrolling** — DOM virtualization kicks in at 250+ tracks; only visible rows are rendered, supporting libraries with 10,000+ tracks
 
 ### Administration & Security
@@ -393,14 +394,21 @@ All error responses follow [RFC 7807 Problem Details](https://www.rfc-editor.org
 |--------|----------|------|-------------|
 | `GET` | `/api/v1/library/files` | — | List tracks (paginated); `?page=0&size=50`; optional `?genre=HARD_ROCK`; max 200/page |
 | `GET` | `/api/v1/library/search` | — | Search tracks; `?q=metallica&page=0&size=50`; uses text index with relevance scoring, falls back to regex |
-| `POST` | `/api/v1/library/scan` | `{ "path": "/absolute/path" }` | Scan a directory; returns `{ filesFound, skipped, errors, errorDetails }`; rate-limited per user |
-| `GET` | `/api/v1/library/scan/progress` | — | SSE stream of scan progress events (`progress`, `complete`, `error`) |
+| `POST` | `/api/v1/library/scan` | `{ "path": "/absolute/path" }` | Queue an async scan. Returns 202 with `{ jobId, status, queuedAt }`; 409 if a scan is already active; rate-limited per user |
+| `GET` | `/api/v1/library/scan/status` | — | Latest `ScanJob` for the user (active if any, else most recent) with live counts, status, current file |
+| `GET` | `/api/v1/library/scan/progress` | — | SSE stream of scan events (`snapshot` on connect if active, then `progress`, `complete`, `error`) |
 | `GET` | `/api/v1/library/files/{id}/stream` | — | Stream audio (supports HTTP Range) |
 | `GET` | `/api/v1/library/files/{id}/transcode?format=mp3` | — | Stream audio transcoded to MP3 via ffmpeg (returns 503 if ffmpeg not installed) |
 | `GET` | `/api/v1/library/files/{id}/cover` | — | Get album cover art (30-day cache) |
 | `PATCH` | `/api/v1/library/files/{id}/genre` | `{ "genre": "CLASSIC_ROCK" }` | Update a track's genre; records a correction for the artist so future scans use this genre |
 | `PATCH` | `/api/v1/library/files/{id}/rating` | `{ "rating": 4 }` | Set track rating (0-5, 0 = unrated) |
+| `PUT` | `/api/v1/library/files/{id}/tags` | `{ "tags": ["live", "acoustic"] }` | Replace a track's custom tags (normalized, ≤20 per track, ≤50 chars each) |
+| `POST` | `/api/v1/library/files/tags/bulk` | `{ "fileIds": [...], "add": [...], "remove": [...] }` | Bulk add/remove tags across up to 1000 files; rejects the batch if any file would exceed the per-track cap |
+| `GET` | `/api/v1/library/tags` | — | List distinct tags with per-tag usage counts: `[{ tag, count }]` |
 | `POST` | `/api/v1/library/files/{id}/plays` | `{ "listenedMs": 120000, "completed": true }` | Record a play event (fired automatically by the web player at 50% listened or on track end); atomically increments `playCount` and sets `lastPlayedAt` |
+| `GET` | `/api/v1/library/history/recent` | — | Reverse-chronological play events with hydrated track; `?window={all,week,month,year}&page=&size=` |
+| `GET` | `/api/v1/library/history/top-tracks` | — | Top tracks by play-count within window; `?window=&limit=` (default 25, max 200) |
+| `GET` | `/api/v1/library/history/top-artists` | — | Top artists by play-count within window; `?window=&limit=` |
 | `POST` | `/api/v1/library/files/bulk-delete` | `{ "fileIds": ["id1", "id2"] }` | Soft-delete tracks (max 100); moves to trash |
 | `GET` | `/api/v1/library/duplicates` | — | Get duplicate track groups by title+artist (paginated); `?page=0&size=50` |
 | `GET` | `/api/v1/library/duplicates/by-hash` | — | Get duplicate track groups by file hash (paginated); `?page=0&size=50` |

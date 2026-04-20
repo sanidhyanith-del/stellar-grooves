@@ -351,6 +351,15 @@
 
                         <hr class="my-3">
 
+                        <!-- History section -->
+                        <div id="historySection" class="mb-2">
+                            <a href="#" id="showHistoryBtn" class="history-link d-flex align-items-center gap-2" role="button">
+                                <span class="section-label">Listening History</span>
+                            </a>
+                        </div>
+
+                        <hr class="my-3">
+
                         <!-- Tags section -->
                         <div id="tagSection">
                             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -513,6 +522,28 @@
                     <!-- Duplicates view -->
                     <div id="viewDuplicates" class="d-none" role="region" aria-label="Duplicate tracks">
                         <div id="duplicatesContent" class="p-3"></div>
+                    </div>
+
+                    <!-- History view -->
+                    <div id="viewHistory" class="d-none" role="region" aria-label="Listening history">
+                        <div class="d-flex justify-content-between align-items-center gap-2 px-3 pt-2 flex-wrap">
+                            <ul class="nav nav-tabs history-tabs" role="tablist">
+                                <li class="nav-item"><button class="nav-link active" type="button" data-history-tab="recent" role="tab">Recently Played</button></li>
+                                <li class="nav-item"><button class="nav-link" type="button" data-history-tab="top-tracks" role="tab">Top Tracks</button></li>
+                                <li class="nav-item"><button class="nav-link" type="button" data-history-tab="top-artists" role="tab">Top Artists</button></li>
+                            </ul>
+                            <div class="d-flex gap-2 align-items-center">
+                                <label class="form-label mb-0 small" style="color: var(--text-muted); white-space: nowrap;">Window:</label>
+                                <select id="historyWindow" class="form-select form-select-sm" style="max-width: 130px;" aria-label="Time window">
+                                    <option value="all">All Time</option>
+                                    <option value="week">Last 7 Days</option>
+                                    <option value="month">Last 30 Days</option>
+                                    <option value="year">Last Year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="historyStatus" class="small px-3 py-2 text-secondary-themed" aria-live="polite"></div>
+                        <div id="historyContent" class="px-2"></div>
                     </div>
 
                     <!-- Playlist view -->
@@ -702,5 +733,6 @@
     <script th:src="@{/js/player.js(v=${appVersion})}"></script>
     <script th:src="@{/js/smart-playlist.js(v=${appVersion})}"></script>
     <script th:src="@{/js/tags.js(v=${appVersion})}"></script>
+    <script th:src="@{/js/history.js(v=${appVersion})}"></script>
 </body>
 </html>

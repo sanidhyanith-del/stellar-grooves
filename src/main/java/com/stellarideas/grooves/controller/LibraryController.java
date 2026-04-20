@@ -534,6 +534,50 @@ public class LibraryController {
         return ResponseEntity.ok(Map.of("recorded", true));
     }
 
+    @GetMapping("/history/recent")
+    public ResponseEntity<?> historyRecent(@CurrentUser User user,
+                                           @RequestParam(required = false) String window,
+                                           @RequestParam(required = false) Integer page,
+                                           @RequestParam(required = false) Integer size) {
+        com.stellarideas.grooves.service.PlayHistoryService.Window w =
+                com.stellarideas.grooves.service.PlayHistoryService.Window.parse(window);
+        int p = page != null ? page : 0;
+        int s = size != null ? size : 50;
+        org.springframework.data.domain.Page<com.stellarideas.grooves.service.PlayHistoryService.RecentPlay> result =
+                playHistoryService.getRecentPlays(user.getId(), w, p, s);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("window", w.name());
+        body.put("page", result.getNumber());
+        body.put("size", result.getSize());
+        body.put("total", result.getTotalElements());
+        body.put("items", result.getContent());
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/history/top-tracks")
+    public ResponseEntity<?> historyTopTracks(@CurrentUser User user,
+                                              @RequestParam(required = false) String window,
+                                              @RequestParam(required = false) Integer limit) {
+        com.stellarideas.grooves.service.PlayHistoryService.Window w =
+                com.stellarideas.grooves.service.PlayHistoryService.Window.parse(window);
+        int l = limit != null ? limit : 25;
+        return ResponseEntity.ok(Map.of(
+                "window", w.name(),
+                "items", playHistoryService.getTopTracks(user.getId(), w, l)));
+    }
+
+    @GetMapping("/history/top-artists")
+    public ResponseEntity<?> historyTopArtists(@CurrentUser User user,
+                                               @RequestParam(required = false) String window,
+                                               @RequestParam(required = false) Integer limit) {
+        com.stellarideas.grooves.service.PlayHistoryService.Window w =
+                com.stellarideas.grooves.service.PlayHistoryService.Window.parse(window);
+        int l = limit != null ? limit : 25;
+        return ResponseEntity.ok(Map.of(
+                "window", w.name(),
+                "items", playHistoryService.getTopArtists(user.getId(), w, l)));
+    }
+
     @PostMapping("/files/bulk-delete")
     public ResponseEntity<?> bulkDelete(@CurrentUser User user, @Valid @RequestBody BulkDeleteRequest request) {
         ResponseEntity<?> rateLimited = rateLimitResponse(user.getId(), "bulk-delete");
