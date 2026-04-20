@@ -65,10 +65,11 @@
 .wurl-side-panel-l .wurl-side-chrome-bottom { border-radius: 0 0 0 16px; }
 .wurl-side-panel-r .wurl-side-chrome-bottom { border-radius: 0 0 16px 0; }
 
-/* Header strip */
+/* Header strip — period marquee sign */
 .wurl-side-header {
-    padding: 0.5rem 0.75rem;
+    padding: 0.6rem 0.75rem 0.5rem;
     text-align: center;
+    position: relative;
     background:
         linear-gradient(180deg,
             rgba(60, 30, 12, 0.97) 0%,
@@ -76,13 +77,37 @@
     border-bottom: 1px solid rgba(212, 175, 55, 0.2);
     box-shadow: inset 0 0 20px rgba(255, 179, 71, 0.06);
 }
+/* Thin amber running-light strip under the header */
+.wurl-side-header::after {
+    content: '';
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: 3px;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 209, 102, 0.0) 10%,
+        rgba(255, 209, 102, 0.55) 50%,
+        rgba(255, 209, 102, 0.0) 90%,
+        transparent 100%);
+    filter: drop-shadow(0 0 4px rgba(255, 179, 71, 0.5));
+    animation: wurl-header-glow 4s ease-in-out infinite;
+}
 .wurl-side-label {
-    font-family: 'Righteous', cursive;
-    font-size: 0.58rem;
+    font-family: 'Limelight', 'Righteous', cursive;
+    font-size: 0.82rem;
     color: var(--neon-amber);
-    letter-spacing: 2px;
+    letter-spacing: 3.5px;
     text-transform: uppercase;
-    text-shadow: 0 0 6px rgba(255, 179, 71, 0.3);
+    text-shadow:
+        0 0 8px rgba(255, 209, 102, 0.55),
+        0 0 18px rgba(255, 122, 26, 0.25),
+        0 1px 0 rgba(0, 0, 0, 0.5);
+}
+@keyframes wurl-header-glow {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
 }
 
 /* Scrollable song list body */
@@ -141,11 +166,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.4rem 0.6rem;
+    padding: 0.4rem 0.6rem 0.4rem 0.75rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: transform 0.08s ease-out, background 0.2s, border-color 0.2s, box-shadow 0.2s;
     position: relative;
     border-radius: 4px;
+    overflow: hidden;
     /* Chrome / brushed-metal background */
     background:
         linear-gradient(180deg,
@@ -159,6 +185,37 @@
         inset 0 1px 0 rgba(255, 255, 255, 0.06),
         inset 0 -1px 0 rgba(0, 0, 0, 0.15),
         0 0 6px rgba(255, 160, 60, 0.04);
+    /* Staggered reveal — --sg-i set per row from JS */
+    animation: wurl-reveal 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    animation-delay: calc(var(--sg-i, 0) * 18ms);
+}
+/* Left-edge LED indicator rail (dark, dormant by default) */
+.wurl-side-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10%;
+    bottom: 10%;
+    width: 2px;
+    border-radius: 2px;
+    background: rgba(255, 209, 102, 0.08);
+    transition: background 0.2s, box-shadow 0.2s;
+    pointer-events: none;
+}
+/* Hover gleam — amber sweep across row */
+.wurl-side-item::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 179, 71, 0) 30%,
+        rgba(255, 209, 102, 0.18) 50%,
+        rgba(255, 179, 71, 0) 70%,
+        transparent 100%);
+    transform: translateX(-100%);
+    transition: transform 0.55s ease-out;
+    pointer-events: none;
 }
 .wurl-side-item:hover {
     background:
@@ -168,42 +225,75 @@
             rgba(120, 120, 135, 0.12) 50%,
             rgba(160, 160, 175, 0.15) 70%,
             rgba(200, 200, 210, 0.18) 100%);
-    border-color: rgba(255, 170, 60, 0.2);
+    border-color: rgba(255, 170, 60, 0.25);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.1),
         inset 0 -1px 0 rgba(0, 0, 0, 0.15),
         0 0 12px rgba(255, 160, 60, 0.15),
         0 0 24px rgba(255, 140, 40, 0.06);
 }
+.wurl-side-item:hover::after { transform: translateX(100%); }
+.wurl-side-item:hover::before {
+    background: rgba(255, 209, 102, 0.45);
+    box-shadow: 0 0 6px rgba(255, 179, 71, 0.5);
+}
+/* Tactile press — row sinks into the panel */
+.wurl-side-item:active {
+    transform: translateY(1px);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.35),
+        0 0 4px rgba(255, 160, 60, 0.08);
+}
 .wurl-side-item.wurl-side-active {
     background:
         linear-gradient(180deg,
-            rgba(220, 200, 200, 0.20) 0%,
-            rgba(180, 155, 155, 0.16) 30%,
-            rgba(140, 115, 115, 0.14) 50%,
-            rgba(180, 155, 155, 0.16) 70%,
-            rgba(220, 200, 200, 0.20) 100%);
-    border-color: rgba(255, 59, 31, 0.25);
+            rgba(255, 210, 140, 0.16) 0%,
+            rgba(220, 160, 90, 0.13) 30%,
+            rgba(180, 120, 60, 0.11) 50%,
+            rgba(220, 160, 90, 0.13) 70%,
+            rgba(255, 210, 140, 0.16) 100%);
+    border-color: rgba(255, 179, 71, 0.35);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.1),
         inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-        0 0 14px rgba(255, 59, 31, 0.12),
-        0 0 28px rgba(255, 59, 31, 0.05);
+        0 0 16px rgba(255, 179, 71, 0.18),
+        0 0 32px rgba(255, 122, 26, 0.08);
 }
-/* Selection number (like 2700 lettered buttons) */
+/* Active-row LED — illuminated + pulsing */
+.wurl-side-item.wurl-side-active::before {
+    background: var(--neon-amber);
+    box-shadow:
+        0 0 6px rgba(255, 209, 102, 0.9),
+        0 0 14px rgba(255, 122, 26, 0.55),
+        0 0 22px rgba(255, 59, 31, 0.3);
+    animation: wurl-led-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wurl-reveal {
+    from { opacity: 0; transform: translateY(3px); filter: brightness(1.4); }
+    to   { opacity: 1; transform: translateY(0);   filter: brightness(1); }
+}
+@keyframes wurl-led-pulse {
+    0%, 100% { opacity: 1;   filter: saturate(1); }
+    50%      { opacity: 0.7; filter: saturate(1.3); }
+}
+/* Selection number — mechanical counter / LED panel */
 .wurl-side-num {
-    font-family: 'Righteous', cursive;
-    font-size: 0.58rem;
-    min-width: 20px;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 0.78rem;
+    font-weight: 400;
+    min-width: 24px;
     text-align: center;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
     flex-shrink: 0;
-    /* Chrome metallic text with orange glow */
-    background: linear-gradient(180deg, #c0c0c8 0%, #e8e8f0 35%, #d0d0d8 50%, #a8a8b0 70%, #c0c0c8 100%);
+    position: relative;
+    z-index: 1;
+    /* Warm tube-amber with subtle inner chrome fade */
+    background: linear-gradient(180deg, #ffe1a8 0%, #ffd166 45%, #ffa84a 60%, #d88a34 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    filter: drop-shadow(0 0 3px rgba(255, 160, 60, 0.4));
+    filter: drop-shadow(0 0 4px rgba(255, 179, 71, 0.55))
+            drop-shadow(0 0 8px rgba(255, 122, 26, 0.25));
 }
 .wurl-side-item:hover .wurl-side-num {
     background: linear-gradient(180deg, #d8d8e0 0%, #f0f0f8 35%, #e0e0e8 50%, #c0c0c8 70%, #d8d8e0 100%);
@@ -213,11 +303,12 @@
     filter: drop-shadow(0 0 5px rgba(255, 160, 60, 0.6));
 }
 .wurl-side-item.wurl-side-active .wurl-side-num {
-    background: linear-gradient(180deg, #e0c8c0 0%, #f8e0d8 35%, #e8d0c8 50%, #d0b0a0 70%, #e0c8c0 100%);
+    background: linear-gradient(180deg, #fff4d0 0%, #ffe080 40%, #ffc850 60%, #ff9a2a 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    filter: drop-shadow(0 0 5px rgba(255, 59, 31, 0.5));
+    filter: drop-shadow(0 0 6px rgba(255, 209, 102, 0.85))
+            drop-shadow(0 0 14px rgba(255, 122, 26, 0.5));
 }
 /* Track info */
 .wurl-side-title {
@@ -244,11 +335,12 @@
     filter: drop-shadow(0 0 6px rgba(255, 160, 60, 0.6));
 }
 .wurl-side-item.wurl-side-active .wurl-side-title {
-    background: linear-gradient(180deg, #e8d0c8 0%, #ffe0d8 30%, #fff0e8 45%, #f0d8d0 55%, #d8c0b8 70%, #e8d0c8 100%);
+    background: linear-gradient(180deg, #fff2d0 0%, #ffe199 30%, #ffd166 45%, #ffb84a 55%, #ff9a2a 70%, #ff7a1a 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    filter: drop-shadow(0 0 5px rgba(255, 59, 31, 0.4));
+    filter: drop-shadow(0 0 5px rgba(255, 209, 102, 0.55))
+            drop-shadow(0 0 12px rgba(255, 122, 26, 0.3));
 }
 .wurl-side-artist {
     font-size: 0.6rem;
@@ -388,6 +480,35 @@
     filter: none;
     color: #4a3828;
 }
+/* Light mode — swap marquee amber for stamped-ink look */
+[data-theme="light"] .wurl-side-label {
+    font-family: 'Limelight', 'Righteous', cursive;
+    color: #8a4a1a;
+    letter-spacing: 3px;
+    font-size: 0.78rem;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+[data-theme="light"] .wurl-side-header::after {
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(138, 74, 26, 0.25) 50%,
+        transparent 100%);
+    filter: none;
+    animation: none;
+}
+[data-theme="light"] .wurl-side-item::before {
+    background: rgba(138, 74, 26, 0.12);
+}
+[data-theme="light"] .wurl-side-item:hover::before {
+    background: rgba(138, 74, 26, 0.5);
+    box-shadow: none;
+}
+[data-theme="light"] .wurl-side-item.wurl-side-active::before {
+    background: #8a4020;
+    box-shadow: none;
+    animation: none;
+}
+[data-theme="light"] .wurl-side-item::after { display: none; }
 
 /* ── Responsive: stack side panels below on mobile ── */
 @media (max-width: 991.98px) {
@@ -1038,14 +1159,16 @@
 }
 
 .wurl-time {
-    font-family: 'Righteous', cursive;
-    font-size: 0.65rem;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 0.78rem;
     color: var(--accent);
     white-space: nowrap;
-    min-width: 30px;
+    min-width: 34px;
     text-align: center;
-    text-shadow: 0 0 6px rgba(255, 209, 102, 0.35);
-    letter-spacing: 0.5px;
+    text-shadow:
+        0 0 6px rgba(255, 209, 102, 0.55),
+        0 0 12px rgba(255, 122, 26, 0.25);
+    letter-spacing: 1px;
 }
 
 .wurl-seek {
