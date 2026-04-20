@@ -21,6 +21,8 @@ public class MusicFileDTO {
     private boolean hasCoverArt;
     private List<String> customTags;
     private Instant createdAt;
+    private int playCount;
+    private Instant lastPlayedAt;
 
     public MusicFileDTO() {}
 
@@ -40,6 +42,8 @@ public class MusicFileDTO {
         dto.hasCoverArt = file.isHasCoverArt();
         dto.customTags = file.getCustomTags();
         dto.createdAt = file.getCreatedAt();
+        dto.playCount = file.getPlayCount();
+        dto.lastPlayedAt = file.getLastPlayedAt();
         return dto;
     }
 
@@ -78,4 +82,10 @@ public class MusicFileDTO {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public int getPlayCount() { return playCount; }
+    public void setPlayCount(int playCount) { this.playCount = playCount; }
+
+    public Instant getLastPlayedAt() { return lastPlayedAt; }
+    public void setLastPlayedAt(Instant lastPlayedAt) { this.lastPlayedAt = lastPlayedAt; }
 }

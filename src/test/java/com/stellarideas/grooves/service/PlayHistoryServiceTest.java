@@ -107,4 +107,149 @@ class PlayHistoryServiceTest {
         verify(playEventRepository).save(evCaptor.capture());
         assertEquals(0, evCaptor.getValue().getListenedMs());
     }
+
+    // ── Retrieval ─────────────────────────────────────────────
+
+    private PlayHistoryService serviceWithFixedClock(java.time.Instant now) {
+        return new PlayHistoryService(playEventRepository, musicFileRepository, mongoTemplate,
+                java.time.Clock.fixed(now, java.time.ZoneOffset.UTC));
+    }
+
+    @Test
+    void recentPlaysSortsByPlayedAtDescAndHydratesTrack() {
+        java.time.Instant now = java.time.Instant.parse("2026-04-20T10:00:00Z");
+        PlayHistoryService svc = serviceWithFixedClock(now);
+
+        PlayEvent e1 = new PlayEvent("user1", "f1", now.minusSeconds(60), 120_000, true);
+        PlayEvent e2 = new PlayEvent("user1", "f2", now.minusSeconds(30), 45_000, false);
+        when(mongoTemplate.find(any(Query.class), eq(PlayEvent.class))).thenReturn(java.util.List.of(e2, e1));
+        when(mongoTemplate.count(any(Query.class), eq(PlayEvent.class))).thenReturn(2L);
+
+        MusicFile f1 = MusicFile.builder().id("f1").title("A").artist("X").build();
+        MusicFile f2 = MusicFile.builder().id("f2").title("B").artist("Y").build();
+        when(musicFileRepository.findByIdInAndUserId(any(), eq("user1"))).thenReturn(java.util.List.of(f1, f2));
+
+        org.springframework.data.domain.Page<PlayHistoryService.RecentPlay> page =
+                svc.getRecentPlays("user1", PlayHistoryService.Window.ALL, 0, 50);
+
+        assertEquals(2, page.getTotalElements());
+        assertEquals(2, page.getContent().size());
+        // Mongo returns the slice in sort order; service preserves it
+        assertEquals("f2", page.getContent().get(0).track().getId());
+        assertEquals("f1", page.getContent().get(1).track().getId());
+    }
+
+    @Test
+    void recentPlaysDropsEventsForPurgedTracks() {
+        PlayEvent ev = new PlayEvent("user1", "purged", java.time.Instant.now(), 0, false);
+        when(mongoTemplate.find(any(Query.class), eq(PlayEvent.class))).thenReturn(java.util.List.of(ev));
+        when(mongoTemplate.count(any(Query.class), eq(PlayEvent.class))).thenReturn(1L);
+        when(musicFileRepository.findByIdInAndUserId(any(), eq("user1"))).thenReturn(java.util.List.of());
+
+        org.springframework.data.domain.Page<PlayHistoryService.RecentPlay> page =
+                service.getRecentPlays("user1", PlayHistoryService.Window.ALL, 0, 50);
+
+        assertEquals(0, page.getContent().size(), "Purged-track events should be filtered out");
+        assertEquals(1L, page.getTotalElements(), "Total still reflects raw event count");
+    }
+
+    @Test
+    void recentPlaysWindowAppliesTimeThreshold() {
+        java.time.Instant now = java.time.Instant.parse("2026-04-20T10:00:00Z");
+        PlayHistoryService svc = serviceWithFixedClock(now);
+        when(mongoTemplate.find(any(Query.class), eq(PlayEvent.class))).thenReturn(java.util.List.of());
+        when(mongoTemplate.count(any(Query.class), eq(PlayEvent.class))).thenReturn(0L);
+
+        svc.getRecentPlays("user1", PlayHistoryService.Window.WEEK, 0, 50);
+
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(mongoTemplate).find(captor.capture(), eq(PlayEvent.class));
+        org.bson.Document qDoc = captor.getValue().getQueryObject();
+        assertEquals("user1", qDoc.get("userId"));
+        org.bson.Document playedAt = (org.bson.Document) qDoc.get("playedAt");
+        assertNotNull(playedAt, "WEEK window should apply a $gte threshold");
+        assertTrue(playedAt.get("$gte") instanceof java.time.Instant);
+    }
+
+    @Test
+    void topTracksReturnsHydratedTracksInAggregateOrder() {
+        @SuppressWarnings("unchecked")
+        org.springframework.data.mongodb.core.aggregation.AggregationResults<org.bson.Document> results =
+                mock(org.springframework.data.mongodb.core.aggregation.AggregationResults.class);
+        when(results.getMappedResults()).thenReturn(java.util.List.of(
+                new org.bson.Document("_id", "f1").append("plays", 10),
+                new org.bson.Document("_id", "f2").append("plays", 4)));
+        when(mongoTemplate.aggregate(any(org.springframework.data.mongodb.core.aggregation.Aggregation.class),
+                eq(PlayEvent.class), eq(org.bson.Document.class))).thenReturn(results);
+
+        MusicFile f1 = MusicFile.builder().id("f1").title("A").artist("X").build();
+        MusicFile f2 = MusicFile.builder().id("f2").title("B").artist("Y").build();
+        // Mongo returns results in arbitrary order; the service preserves the aggregate ranking
+        when(musicFileRepository.findByIdInAndUserId(any(), eq("user1"))).thenReturn(java.util.List.of(f2, f1));
+
+        java.util.List<PlayHistoryService.TopTrack> out = service.getTopTracks("user1", PlayHistoryService.Window.ALL, 10);
+
+        assertEquals(2, out.size());
+        assertEquals("f1", out.get(0).track().getId());
+        assertEquals(10, out.get(0).plays());
+        assertEquals("f2", out.get(1).track().getId());
+        assertEquals(4, out.get(1).plays());
+    }
+
+    @Test
+    void topArtistsSumsCountsAcrossTracks() {
+        @SuppressWarnings("unchecked")
+        org.springframework.data.mongodb.core.aggregation.AggregationResults<org.bson.Document> results =
+                mock(org.springframework.data.mongodb.core.aggregation.AggregationResults.class);
+        when(results.getMappedResults()).thenReturn(java.util.List.of(
+                new org.bson.Document("_id", "f1").append("plays", 5),   // Metallica
+                new org.bson.Document("_id", "f2").append("plays", 3),   // Metallica
+                new org.bson.Document("_id", "f3").append("plays", 4))); // AC/DC
+        when(mongoTemplate.aggregate(any(org.springframework.data.mongodb.core.aggregation.Aggregation.class),
+                eq(PlayEvent.class), eq(org.bson.Document.class))).thenReturn(results);
+
+        when(musicFileRepository.findByIdInAndUserId(any(), eq("user1"))).thenReturn(java.util.List.of(
+                MusicFile.builder().id("f1").artist("Metallica").build(),
+                MusicFile.builder().id("f2").artist("Metallica").build(),
+                MusicFile.builder().id("f3").artist("AC/DC").build()));
+
+        java.util.List<PlayHistoryService.TopArtist> out =
+                service.getTopArtists("user1", PlayHistoryService.Window.ALL, 10);
+
+        assertEquals(2, out.size());
+        assertEquals("Metallica", out.get(0).artist());
+        assertEquals(8, out.get(0).plays());
+        assertEquals("AC/DC", out.get(1).artist());
+        assertEquals(4, out.get(1).plays());
+    }
+
+    @Test
+    void topArtistsDropsTracksWithBlankArtist() {
+        @SuppressWarnings("unchecked")
+        org.springframework.data.mongodb.core.aggregation.AggregationResults<org.bson.Document> results =
+                mock(org.springframework.data.mongodb.core.aggregation.AggregationResults.class);
+        when(results.getMappedResults()).thenReturn(java.util.List.of(
+                new org.bson.Document("_id", "f1").append("plays", 5),
+                new org.bson.Document("_id", "f2").append("plays", 3)));
+        when(mongoTemplate.aggregate(any(org.springframework.data.mongodb.core.aggregation.Aggregation.class),
+                eq(PlayEvent.class), eq(org.bson.Document.class))).thenReturn(results);
+        when(musicFileRepository.findByIdInAndUserId(any(), eq("user1"))).thenReturn(java.util.List.of(
+                MusicFile.builder().id("f1").artist("Metallica").build(),
+                MusicFile.builder().id("f2").artist("").build()));
+
+        java.util.List<PlayHistoryService.TopArtist> out =
+                service.getTopArtists("user1", PlayHistoryService.Window.ALL, 10);
+
+        assertEquals(1, out.size());
+        assertEquals("Metallica", out.get(0).artist());
+    }
+
+    @Test
+    void windowParseFallsBackToAllOnUnknown() {
+        assertEquals(PlayHistoryService.Window.ALL, PlayHistoryService.Window.parse(null));
+        assertEquals(PlayHistoryService.Window.ALL, PlayHistoryService.Window.parse(""));
+        assertEquals(PlayHistoryService.Window.ALL, PlayHistoryService.Window.parse("decade"));
+        assertEquals(PlayHistoryService.Window.WEEK, PlayHistoryService.Window.parse("week"));
+        assertEquals(PlayHistoryService.Window.MONTH, PlayHistoryService.Window.parse("MONTH"));
+    }
 }
