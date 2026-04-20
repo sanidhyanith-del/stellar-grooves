@@ -3,146 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#ff3b1f">
-    <title>Stellar Grooves - Help</title>
+    <meta name="theme-color" content="#e8341a">
+    <title>Stellar Grooves — Liner Notes</title>
     <link rel="icon" th:href="@{/images/logo.png}" type="image/png">
     <link rel="apple-touch-icon" th:href="@{/images/icon-192.png}">
     <link rel="manifest" th:href="@{/manifest.json}">
     <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
     <link rel="stylesheet" th:href="@{/css/main.css(v=${appVersion})}">
-    <style>
-        .help-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 1.5rem 1rem 3rem;
-        }
-        .help-nav {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            padding: 0.75rem 0;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            background: var(--bg-primary);
-            overflow-x: auto;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
-        }
-        .help-nav a {
-            display: inline-block;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.78rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-radius: 6px;
-            transition: color 0.2s, background 0.2s;
-        }
-        .help-nav a:hover,
-        .help-nav a:focus-visible {
-            color: var(--accent);
-            background: rgba(255, 209, 102, 0.08);
-        }
-        .help-section { margin-bottom: 2rem; scroll-margin-top: 4rem; }
-        .help-section .card-header {
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-        .help-section .card-header .section-icon {
-            font-size: 1.2rem;
-        }
-        .help-topic { margin-bottom: 1.25rem; }
-        .help-topic:last-child { margin-bottom: 0; }
-        .help-topic h3 {
-            font-family: 'Righteous', cursive;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: var(--accent);
-            margin-bottom: 0.4rem;
-        }
-        .help-topic p,
-        .help-topic li {
-            font-size: 0.88rem;
-            color: var(--text-secondary);
-            line-height: 1.7;
-        }
-        .help-topic ul { padding-left: 1.2rem; margin-bottom: 0.5rem; }
-        .help-topic li { margin-bottom: 0.25rem; }
-        .help-kbd {
-            display: inline-block;
-            padding: 0.15rem 0.45rem;
-            font-size: 0.75rem;
-            font-family: 'DM Sans', monospace;
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            line-height: 1.4;
-        }
-        .help-step {
-            display: flex;
-            gap: 0.75rem;
-            margin-bottom: 0.75rem;
-        }
-        .help-step-num {
-            flex-shrink: 0;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Righteous', cursive;
-            font-size: 0.8rem;
-            color: var(--bg-primary);
-            background: var(--accent);
-            border-radius: 50%;
-        }
-        .help-step-text {
-            font-size: 0.88rem;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            padding-top: 0.2rem;
-        }
-        .help-back-top {
-            display: inline-block;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-decoration: none;
-            margin-top: 0.5rem;
-            transition: color 0.2s;
-        }
-        .help-back-top:hover { color: var(--accent); }
-        .shortcut-table { width: 100%; font-size: 0.85rem; }
-        .shortcut-table td {
-            padding: 0.35rem 0.5rem;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-secondary);
-        }
-        .shortcut-table td:first-child { width: 40%; color: var(--text-primary); }
-        .help-hero {
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .help-hero h1 {
-            font-family: 'Righteous', cursive;
-            font-size: 1.6rem;
-            color: var(--text-primary);
-            margin-bottom: 0.3rem;
-        }
-        .help-hero p {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
-        @media (max-width: 575.98px) {
-            .help-wrapper { padding: 1rem 0.75rem 2rem; }
-            .help-section .card-header { font-size: 0.95rem; }
-        }
-    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg">
@@ -159,8 +26,8 @@
 
     <div class="help-wrapper" id="top">
         <div class="help-hero">
-            <h1>User Guide</h1>
-            <p>Everything you need to know about Stellar Grooves.</p>
+            <h1>Liner Notes</h1>
+            <p>Everything you need to know about Stellar Grooves &mdash; from a quick scan to crossfade, playlists, and PWA install.</p>
         </div>
 
         <div class="help-nav" role="navigation" aria-label="Help sections">
@@ -169,8 +36,8 @@
             <a href="#library">Library</a>
             <a href="#playlists">Playlists</a>
             <a href="#scanning">Scanning</a>
-            <a href="#backup">Backup &amp; Export</a>
-            <a href="#install">Install App</a>
+            <a href="#backup">Backup</a>
+            <a href="#install">Install</a>
             <a href="#shortcuts">Shortcuts</a>
             <a href="#admin">Admin</a>
         </div>
@@ -186,24 +53,24 @@
                         <h3>First-Time Setup</h3>
                         <div class="help-step">
                             <div class="help-step-num">1</div>
-                            <div class="help-step-text">Create an account at the <strong>Sign Up</strong> page, then log in.</div>
+                            <div class="help-step-text">Create an account at the <strong>Sign Up</strong> page, then sign in.</div>
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">2</div>
-                            <div class="help-step-text">In the <strong>Scan Directory</strong> panel on the left sidebar, enter the absolute path to your music folder (e.g. <code>/home/user/Music</code> or <code>C:\Users\You\Music</code>).</div>
+                            <div class="help-step-text">Open the <strong>Scan Directory</strong> panel in the sidebar and enter the absolute path to your music folder (e.g. <code>/home/user/Music</code> or <code>C:\Users\You\Music</code>).</div>
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">3</div>
-                            <div class="help-step-text">Click <strong>Start Scan</strong>. A progress bar shows files being imported in real time. The scanner finds <code>.mp3</code>, <code>.flac</code>, and <code>.m4a</code> files and extracts metadata (title, artist, album, year, genre, cover art).</div>
+                            <div class="help-step-text">Click <strong>Start Scan</strong>. A live progress line shows files coming in. The scanner finds <code>.mp3</code>, <code>.flac</code>, and <code>.m4a</code> files and pulls title, artist, album, year, genre, and cover art from the embedded tags.</div>
                         </div>
                         <div class="help-step">
                             <div class="help-step-num">4</div>
-                            <div class="help-step-text">Once the scan completes, your tracks appear in the library. Click the play button on any row to start streaming.</div>
+                            <div class="help-step-text">When the scan lands, your tracks fill the library. Click the play button on any row — the Wurlitzer warms up and you're in.</div>
                         </div>
                     </div>
                     <div class="help-topic">
-                        <h3>Navigating the Dashboard</h3>
-                        <p>The main dashboard has two panels. The <strong>left sidebar</strong> contains your playback queue, playlists, and the scan directory form. The <strong>right panel</strong> is your music library with browsing views for artists, albums, and tracks. Use the stat cards at the top to quickly jump to filtered views (e.g. click "Duplicated Songs" to review duplicates).</p>
+                        <h3>Navigating the Room</h3>
+                        <p>The main room has two panels. The <strong>left sidebar</strong> holds your Up Next queue, playlists, and the scan form. The <strong>right panel</strong> is your library with Artists, Albums, and Tracks views. Stat cards at the top jump you to filtered views — click <em>Duplicates</em> to review dupes, <em>Albums</em> for the grid.</p>
                     </div>
                 </div>
             </div>
@@ -218,27 +85,27 @@
                 </div>
                 <div class="card-body">
                     <div class="help-topic">
-                        <h3>Player Controls</h3>
-                        <p>The persistent player bar at the bottom of the screen shows the current track with album art, a seek bar, and volume control. Controls include:</p>
+                        <h3>The Wurlitzer</h3>
+                        <p>When a track starts, the 1015 jukebox materializes at the top of the page with live cover art, a spinning platter, bubble tubes, and dual audio elements for crossfade. Controls include:</p>
                         <ul>
                             <li><strong>Play / Pause</strong> &mdash; click the play button or press <span class="help-kbd">Space</span></li>
-                            <li><strong>Seek</strong> &mdash; drag the progress bar, or use <span class="help-kbd">&larr;</span> / <span class="help-kbd">&rarr;</span> arrow keys (5-second jumps)</li>
-                            <li><strong>Volume</strong> &mdash; drag the volume slider, or use <span class="help-kbd">&uarr;</span> / <span class="help-kbd">&darr;</span> arrow keys</li>
-                            <li><strong>Shuffle</strong> &mdash; click the shuffle button to randomize track order</li>
-                            <li><strong>Next Track</strong> &mdash; playback auto-advances when a track ends</li>
+                            <li><strong>Seek</strong> &mdash; drag the progress bar, or use <span class="help-kbd">&larr;</span> / <span class="help-kbd">&rarr;</span> (5-second jumps)</li>
+                            <li><strong>Volume</strong> &mdash; drag the slider, or use <span class="help-kbd">&uarr;</span> / <span class="help-kbd">&darr;</span></li>
+                            <li><strong>Shuffle</strong> &mdash; shuffle button on the control panel</li>
+                            <li><strong>Next Track</strong> &mdash; playback auto-advances</li>
                         </ul>
                     </div>
                     <div class="help-topic">
                         <h3>Crossfade</h3>
-                        <p>Click the sparkle button in the player bar to enable <strong>crossfade</strong>. When active, the last 3 seconds of each track fade smoothly into the next one using dual audio elements &mdash; no gap, no click.</p>
+                        <p>Click the sparkle button to enable <strong>crossfade</strong>. The last 3 seconds of each track fade smoothly into the next using two audio elements — no gap, no click.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Queue</h3>
-                        <p>Add tracks to the <strong>"Up Next"</strong> queue using the + button on each row. Queued tracks play before the regular library order resumes. The queue syncs to the server so it persists across sessions and devices. You can clear the entire queue with one click.</p>
+                        <p>Add tracks to <strong>Up Next</strong> with the + button on each row. Queued tracks play before the regular library order resumes. The queue syncs to the server so it persists across sessions and devices.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Lock Screen &amp; Notifications</h3>
-                        <p>On supported devices, track metadata and album art appear on your lock screen and in system media notifications. Use the lock screen controls to play, pause, skip, and seek without opening the app.</p>
+                        <p>On supported devices, track metadata and album art appear on your lock screen and in system media notifications. Play, pause, skip, and seek without opening the app.</p>
                     </div>
                 </div>
             </div>
@@ -254,36 +121,36 @@
                 <div class="card-body">
                     <div class="help-topic">
                         <h3>Search &amp; Filter</h3>
-                        <p>Use the <strong>search box</strong> for full-text search across title, artist, and album. Combine it with the <strong>artist</strong>, <strong>album</strong>, and <strong>genre</strong> dropdown filters &mdash; all filters work together with AND logic.</p>
+                        <p>The <strong>search box</strong> runs a full-text search across title, artist, and album. Combine it with the <strong>artist</strong>, <strong>album</strong>, and <strong>genre</strong> dropdowns &mdash; all filters stack with AND logic.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Browse Views</h3>
-                        <p>Switch between three views using the breadcrumb navigation:</p>
+                        <p>Switch between three views via breadcrumb navigation:</p>
                         <ul>
-                            <li><strong>Artists</strong> &mdash; lists all artists with album and track counts. Click an artist to drill down.</li>
-                            <li><strong>Albums</strong> &mdash; grid view with cover art thumbnails (toggle between grid and list). Click an album to see its tracks.</li>
-                            <li><strong>Tracks</strong> &mdash; sortable table with columns for title, artist, album, genre, rating, and decade.</li>
+                            <li><strong>Artists</strong> &mdash; all artists with album + track counts. Click to drill down.</li>
+                            <li><strong>Albums</strong> &mdash; grid of sleeves with cover art (toggle between grid, list, or cover-art gallery). Click for tracks.</li>
+                            <li><strong>Tracks</strong> &mdash; sortable table: title, artist, album, genre, rating, decade.</li>
                         </ul>
                     </div>
                     <div class="help-topic">
                         <h3>Ratings</h3>
-                        <p>Rate any track from 1 to 5 stars using the star widget on each row. Click the same star again to clear the rating. You can sort the track list by rating to surface your favorites.</p>
+                        <p>Rate any track 1&ndash;5 stars using the star widget. Click the same star again to clear it. Sort the track list by rating to surface your favorites.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Genre Editing</h3>
-                        <p>Tracks are auto-classified by genre during scanning. If a track shows as <strong>"Other"</strong>, click the genre label to reclassify it. Your correction is remembered &mdash; future scans for that artist will use your chosen genre.</p>
+                        <p>Tracks are auto-classified during scanning. If one shows as <strong>Other</strong>, click the genre label to reclassify. Your correction is remembered &mdash; future scans for that artist will use your chosen genre.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Bulk Operations</h3>
-                        <p>Use the checkboxes on each row (or the "select all" toggle) to select multiple tracks. A bulk action bar appears with options to <strong>delete</strong> selected tracks or <strong>add them to a playlist</strong>.</p>
+                        <p>Use row checkboxes (or the select-all toggle) to pick multiple tracks. A bulk action bar appears with options to <strong>delete</strong> selected tracks or <strong>add them to a playlist</strong>.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Duplicates</h3>
-                        <p>Click the <strong>"Duplicated Songs"</strong> stat card to review duplicate tracks (matched by title + artist). You can also detect exact file copies via hash-based duplicate detection. Compare duplicates side by side and delete the ones you don't want.</p>
+                        <p>Click the <strong>Duplicates</strong> stat card to review duplicate tracks (matched by title + artist). You can also detect exact file copies via hash-based duplicate detection. Compare side by side and delete the ones you don't want.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Trash</h3>
-                        <p>Deleted tracks go to a <strong>30-day trash</strong> instead of being permanently removed. Restore tracks from trash if you change your mind, or empty the trash to free up space.</p>
+                        <p>Deleted tracks go to a <strong>30-day trash</strong> instead of being permanently removed. Restore from trash if you change your mind, or empty it to free up space.</p>
                     </div>
                 </div>
             </div>
@@ -298,20 +165,20 @@
                 </div>
                 <div class="card-body">
                     <div class="help-topic">
-                        <h3>Creating &amp; Managing</h3>
-                        <p>Create a new playlist from the left sidebar by typing a name and clicking the + button. Add tracks using the + button on each track row, or select multiple tracks and use the bulk "Add to Playlist" action.</p>
+                        <h3>Create &amp; Manage</h3>
+                        <p>Create a playlist from the sidebar by typing a name and hitting the + button. Add tracks with the + on each row, or select multiple tracks and use the bulk <em>Add to Playlist</em> action.</p>
                     </div>
                     <div class="help-topic">
-                        <h3>Reordering</h3>
-                        <p>Open a playlist and <strong>drag and drop</strong> tracks to reorder them. You can also sort by title, artist, album, genre, rating, or year using the column headers.</p>
+                        <h3>Reorder</h3>
+                        <p>Open a playlist and <strong>drag-drop</strong> tracks to reorder. You can also sort by title, artist, album, genre, rating, or year using the column headers.</p>
                     </div>
                     <div class="help-topic">
-                        <h3>Sharing</h3>
-                        <p>Click the <strong>share button</strong> on any playlist to generate a read-only public link. Anyone with the link can view (but not modify) the playlist. Revoke the link at any time to make the playlist private again.</p>
+                        <h3>Share</h3>
+                        <p>Click the <strong>share</strong> button on any playlist to generate a read-only public link. Anyone with the link can view (but not modify) the playlist. Revoke the link at any time to make it private again.</p>
                     </div>
                     <div class="help-topic">
-                        <h3>Exporting</h3>
-                        <p>Export playlists as <strong>M3U</strong> (for use in other music players) or <strong>JSON</strong> (for backup). Use the export button in the playlist view.</p>
+                        <h3>Export</h3>
+                        <p>Export playlists as <strong>M3U</strong> (for use in other players) or <strong>JSON</strong> (for backup).</p>
                     </div>
                 </div>
             </div>
@@ -326,21 +193,21 @@
                 </div>
                 <div class="card-body">
                     <div class="help-topic">
-                        <h3>How Scanning Works</h3>
-                        <p>The scanner recursively walks your music directory looking for audio files (<code>.mp3</code>, <code>.flac</code>, <code>.m4a</code> by default). For each file it extracts metadata using the audio file's embedded tags and computes a SHA-256 file hash for duplicate detection.</p>
-                        <p>Files that have already been imported (by file path or by title + artist match) are automatically skipped. Cover art is extracted and stored separately, subject to a per-user storage quota.</p>
+                        <h3>How it Works</h3>
+                        <p>The scanner walks your music directory recursively looking for <code>.mp3</code>, <code>.flac</code>, and <code>.m4a</code>. For each file it extracts metadata from the embedded tags and computes a SHA-256 hash for duplicate detection.</p>
+                        <p>Files already imported (by path or by title + artist match) are skipped automatically. Cover art is extracted and stored separately, subject to a per-user storage quota.</p>
                     </div>
                     <div class="help-topic">
-                        <h3>Scan Progress</h3>
-                        <p>During a scan, a real-time progress bar shows how many files have been imported, skipped, or encountered errors. You can continue using the app while a scan runs in the background.</p>
+                        <h3>Progress</h3>
+                        <p>During a scan, a live counter shows files imported, skipped, or errored. You can keep using the app while a scan runs.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Scheduled Scans</h3>
-                        <p>Set up automatic scanning on a schedule. In the Scan Directory panel, configure a <strong>cron expression</strong> and directory path. The system checks every 60 seconds and triggers scans when due &mdash; great for keeping your library in sync with a folder that gets new music regularly.</p>
+                        <p>Set up automatic scanning on a schedule. In the Scan Directory panel, configure a <strong>cron expression</strong> and path. The system checks every 60 seconds and triggers scans when due &mdash; great for keeping your library in sync with a folder that gets new music regularly.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Rate Limiting</h3>
-                        <p>To prevent overloading the server, there is a 60-second cooldown between scans. The cooldown timer is shown in the scan panel.</p>
+                        <p>To keep the server happy there's a 60-second cooldown between scans. The timer is shown in the scan panel.</p>
                     </div>
                 </div>
             </div>
@@ -356,15 +223,15 @@
                 <div class="card-body">
                     <div class="help-topic">
                         <h3>Library Export</h3>
-                        <p>Export your full library metadata as <strong>JSON</strong> or <strong>CSV</strong> from the library view. This includes all track metadata (title, artist, album, genre, rating, year) but not the audio files themselves.</p>
+                        <p>Export your full library metadata as <strong>JSON</strong> or <strong>CSV</strong> from the library view. Includes all track metadata (title, artist, album, genre, rating, year) but not the audio files themselves.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Full Backup</h3>
-                        <p>Create a complete backup of your library as a single JSON file. This includes tracks, playlists, ratings, genre corrections, and file hashes. Restore the backup on any Stellar Grooves instance to recreate your entire library metadata and playlists.</p>
+                        <p>Create a complete backup as a single JSON file: tracks, playlists, ratings, genre corrections, and file hashes. Restore it on any Stellar Grooves instance to bring your library metadata and playlists back.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Playlist Export</h3>
-                        <p>Individual playlists can be exported as <strong>M3U</strong> (compatible with most music players) or <strong>JSON</strong>.</p>
+                        <p>Individual playlists export as <strong>M3U</strong> (compatible with most players) or <strong>JSON</strong>.</p>
                     </div>
                 </div>
             </div>
@@ -380,23 +247,23 @@
                 <div class="card-body">
                     <div class="help-topic">
                         <h3>Desktop (Chrome / Edge)</h3>
-                        <p>Look for the <strong>install icon</strong> in the browser address bar (a monitor with a down arrow), or open the browser menu and select <strong>"Install Stellar Grooves"</strong>. The app opens in its own window with no browser chrome and gets its own taskbar/dock icon.</p>
+                        <p>Look for the <strong>install icon</strong> in the browser address bar, or open the browser menu and select <strong>Install Stellar Grooves</strong>. The app opens in its own window — no browser chrome — with its own taskbar/dock icon.</p>
                     </div>
                     <div class="help-topic">
                         <h3>Android</h3>
-                        <p>In Chrome, tap the <strong>three-dot menu</strong> and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>. Stellar Grooves appears as a standalone app on your home screen and in the app drawer.</p>
+                        <p>In Chrome, tap the <strong>three-dot menu</strong> and select <strong>Add to Home screen</strong> or <strong>Install app</strong>. Stellar Grooves appears as a standalone app on your home screen and in the app drawer.</p>
                     </div>
                     <div class="help-topic">
                         <h3>iPhone / iPad</h3>
-                        <p>In Safari, tap the <strong>Share</strong> button (square with an arrow), then tap <strong>"Add to Home Screen"</strong>. The app launches in full-screen mode from your home screen.</p>
+                        <p>In Safari, tap the <strong>Share</strong> button, then <strong>Add to Home Screen</strong>. Launches full-screen.</p>
                     </div>
                     <div class="help-topic">
                         <h3>What You Get</h3>
                         <ul>
                             <li>Standalone window &mdash; no address bar or browser tabs</li>
-                            <li>Faster loading &mdash; static assets are cached by the service worker</li>
-                            <li>Lock screen controls &mdash; play, pause, skip, and seek from your lock screen or notification shade</li>
-                            <li>Offline page &mdash; a friendly message if the server is unreachable, instead of a browser error</li>
+                            <li>Faster loading &mdash; static assets cached by service worker</li>
+                            <li>Lock screen controls &mdash; play/pause/skip/seek from lock screen or notification shade</li>
+                            <li>Offline page &mdash; a friendly fallback if the server is unreachable</li>
                         </ul>
                     </div>
                 </div>
@@ -449,16 +316,16 @@
                 </div>
                 <div class="card-body">
                     <div class="help-topic">
-                        <h3>Admin Dashboard</h3>
-                        <p>Users with the <strong>Admin</strong> role can access the admin dashboard from the navbar. The dashboard shows system-wide statistics (total users, files, playlists) and a paginated user management table.</p>
+                        <h3>Control Room</h3>
+                        <p>Users with the <strong>Admin</strong> role can open the Control Room from the navbar. It shows system-wide stats (total users, files, playlists) and a paginated user management table.</p>
                     </div>
                     <div class="help-topic">
                         <h3>User Management</h3>
-                        <p>Admins can view all registered users with their file counts. Deleting a user permanently removes their account and all associated data (music files, playlists, cover art, queue, and genre corrections).</p>
+                        <p>Admins see all registered users with their file counts. Deleting a user permanently removes their account and associated data (tracks, playlists, cover art, queue, genre corrections).</p>
                     </div>
                     <div class="help-topic">
                         <h3>First Admin Setup</h3>
-                        <p>An initial admin user can be created on first startup by setting the <code>ADMIN_PASSWORD</code> environment variable. See the project documentation for details.</p>
+                        <p>An initial admin can be created on first startup by setting the <code>ADMIN_PASSWORD</code> environment variable. See project documentation for details.</p>
                     </div>
                 </div>
             </div>

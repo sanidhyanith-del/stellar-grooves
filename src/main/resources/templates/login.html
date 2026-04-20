@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#ff3b1f">
-    <title>Stellar Grooves - Login</title>
+    <meta name="theme-color" content="#e8341a">
+    <title>Stellar Grooves — Sign In</title>
     <link rel="icon" th:href="@{/images/logo.png}" type="image/png">
     <link rel="apple-touch-icon" th:href="@{/images/icon-192.png}">
     <link rel="manifest" th:href="@{/manifest.json}">
@@ -12,45 +12,64 @@
     <link rel="stylesheet" th:href="@{/css/main.css}">
 </head>
 <body>
-    <div class="auth-wrapper">
-        <div class="auth-card">
-            <div class="card">
-                <div class="card-body p-4">
-                    <div class="logo-container">
-                        <img th:src="@{/images/stellar-grooves-logo.svg}" alt="Stellar Grooves" style="height:auto; width:100%; max-width:360px;">
-                        <p class="auth-subtitle mt-2">Sign in to your music library</p>
-                    </div>
+    <div class="sg-auth">
+        <section class="sg-auth-stage">
+            <div class="sg-auth-brand">
+                <img th:src="@{/images/stellar-grooves-logo-nav.svg}" alt="Stellar Grooves">
+                <span>Stellar Grooves</span>
+            </div>
 
-                    <div th:if="${param.error}" class="alert alert-danger" role="alert">
-                        Invalid username or password.
-                    </div>
-                    <div th:if="${param.logout}" class="alert alert-success" role="alert">
-                        You have been signed out.
-                    </div>
+            <div class="sg-auth-headline">
+                <div class="sg-auth-kicker">One More Spin</div>
+                <h1 class="sg-auth-title">Tonight's set<br>is <em>waiting</em>.</h1>
+                <p class="sg-auth-lede">Your records, your ratings, your playlists — loaded into a private listening room, ready the moment you drop the needle.</p>
+            </div>
 
-                    <form th:action="@{/login}" method="post" novalidate>
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" id="username" name="username" class="form-control"
-                                   required autofocus autocomplete="username">
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" id="password" name="password" class="form-control"
-                                   required autocomplete="current-password">
-                        </div>
-                        <button class="btn btn-primary w-100 mt-1" type="submit">Sign In</button>
-                    </form>
+            <div class="sg-auth-footer">
+                <span>Hi-Fi</span>
+                <span>Self-Hosted</span>
+                <span>33⅓ / 45 / 78</span>
+            </div>
+        </section>
 
-                    <p class="text-center mt-3 mb-0 text-secondary-themed">
-                        Don't have an account? <a href="/signup">Sign Up</a>
-                    </p>
-                    <p class="text-center mt-2 mb-0 text-secondary-themed" style="font-size: 0.82rem;">
-                        <a href="/help">Help &amp; User Guide</a>
-                    </p>
+        <section class="sg-auth-panel">
+            <div class="sg-auth-card">
+                <div class="logo-container">
+                    <img th:src="@{/images/stellar-grooves-logo.svg}" alt="Stellar Grooves" class="img-full" style="max-width:300px;">
+                </div>
+
+                <h2 class="sg-auth-card-title">Sign In</h2>
+                <div class="sg-auth-card-sub">Welcome back to the room</div>
+
+                <div th:if="${param.error}" class="alert alert-danger" role="alert">
+                    Invalid username or password.
+                </div>
+                <div th:if="${param.logout}" class="alert alert-success" role="alert">
+                    You have been signed out.
+                </div>
+
+                <form th:action="@{/login}" method="post" novalidate>
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" id="username" name="username" class="form-control"
+                               required autofocus autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" name="password" class="form-control"
+                               required autocomplete="current-password">
+                    </div>
+                    <button class="btn btn-primary w-100 mt-2 btn-lg" type="submit">Drop the Needle</button>
+                </form>
+
+                <div class="sg-auth-card-foot">
+                    New here? <a href="/signup">Open an account</a>
+                </div>
+                <div class="sg-auth-card-foot sg-auth-card-foot-small">
+                    <a href="/help">User Guide &amp; Help</a>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 </body>
 </html>

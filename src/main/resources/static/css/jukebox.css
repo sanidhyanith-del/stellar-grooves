@@ -510,38 +510,31 @@
 }
 [data-theme="light"] .wurl-side-item::after { display: none; }
 
-/* ── Responsive: stack side panels below on mobile ── */
+/* ── Responsive: collapse to one unified list below the cabinet ── */
 @media (max-width: 991.98px) {
     .jukebox-player-wrap {
         flex-direction: column;
         align-items: center;
     }
-    .wurl-center { width: 100%; max-width: 380px; }
+    .wurl-center { width: 100%; max-width: 380px; order: 1; }
     .wurl-side-panel {
         max-width: 380px;
         width: 100%;
-        max-height: 200px;
-        border-radius: 0 0 16px 16px;
+        max-height: 280px;
     }
     .wurl-side-panel-l {
         order: 2;
         margin-right: 0;
         margin-top: -4px;
         border-right: none;
-        border-radius: 0;
-    }
-    .wurl-side-panel-r {
-        order: 3;
-        margin-left: 0;
-        margin-top: -1px;
-        border-left: none;
         border-radius: 0 0 16px 16px;
     }
-    .wurl-center { order: 1; }
-    .wurl-side-panel-l .wurl-side-chrome-top,
-    .wurl-side-panel-r .wurl-side-chrome-top { border-radius: 0; }
-    .wurl-side-panel-l .wurl-side-chrome-bottom { border-radius: 0; }
-    .wurl-side-panel-r .wurl-side-chrome-bottom { border-radius: 0 0 16px 16px; }
+    .wurl-side-panel-l .wurl-side-chrome-top { border-radius: 0; }
+    .wurl-side-panel-l .wurl-side-chrome-bottom { border-radius: 0 0 16px 16px; }
+
+    /* Right panel is absorbed into the left on mobile (JS dumps all
+       tracks into the left list). Hide the right panel entirely. */
+    .wurl-side-panel-r { display: none; }
 }
 
 .wurlitzer {
@@ -1729,4 +1722,29 @@ td.col-play { width: 32px; padding-right: 0; }
     .btn-wurl-sm { width: 44px; height: 44px; font-size: 1rem; }
     .btn-wurl-play { width: 56px; height: 56px; font-size: 1.6rem; }
     .wurl-controls { gap: 0.6rem; }
+}
+
+/* ── Jukebox: narrow phones — shrink the whole cabinet ── */
+@media (max-width: 420px) {
+    .wurl-center { width: 100%; max-width: 340px; }
+    .wurlitzer { transform-origin: top center; }
+    .wurl-side-panel { max-height: 170px; }
+    .wurl-side-label { font-size: 0.7rem; letter-spacing: 0.12em; }
+    .wurl-controls-panel { padding-left: 12px; padding-right: 12px; }
+}
+
+/* ── Jukebox integration with new hero strip ── */
+.jukebox-player { position: relative; }
+.jukebox-player::before {
+    /* faint stage-floor gradient under the cabinet to ground it */
+    content: '';
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: -18px;
+    height: 40px;
+    background: radial-gradient(ellipse 60% 100% at 50% 0%, rgba(232, 52, 26, 0.2), transparent 65%);
+    pointer-events: none;
+    z-index: -1;
+    filter: blur(12px);
 }

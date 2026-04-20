@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#ff3b1f">
+    <meta name="theme-color" content="#e8341a">
     <meta name="_csrf" th:content="${_csrf.token}">
     <meta name="_csrf_header" th:content="${_csrf.headerName}">
-    <title>Stellar Grooves - Admin</title>
+    <title>Stellar Grooves — Control Room</title>
     <link rel="icon" th:href="@{/images/logo.png}" type="image/png">
     <link rel="apple-touch-icon" th:href="@{/images/icon-192.png}">
     <link rel="manifest" th:href="@{/manifest.json}">
@@ -29,7 +29,22 @@
         </div>
     </nav>
 
-    <div class="main-content">
+    <div class="main-content sg-admin-console">
+
+        <section class="sg-hero" aria-label="Admin control room header">
+            <span class="sg-hero-stamp" aria-hidden="true">Live &middot; CH-24</span>
+            <div>
+                <span class="sg-hero-kicker">Admin &middot; Side B</span>
+                <h1 class="sg-hero-title">The <em>Control</em> Room</h1>
+                <p class="sg-hero-tagline">House accounts, total files on the wall, playlists in rotation. Flip the switch, cut a user, keep the room humming.</p>
+            </div>
+            <div class="sg-hero-meta">
+                <div><b>ACCESS</b></div>
+                <div>Admin Console</div>
+                <div>Clearance &middot; Granted</div>
+            </div>
+        </section>
+
         <!-- Stats -->
         <div class="row g-3 mb-4">
             <div class="col-6 col-md-4">
@@ -70,11 +85,11 @@
                     <tbody id="usersBody"></tbody>
                 </table>
             </div>
-            <div class="d-flex justify-content-between align-items-center px-3 py-2">
-                <span id="pageInfo" class="small" style="color: var(--text-muted);"></span>
+            <div class="d-flex justify-content-between align-items-center px-3 py-2" style="border-top: 1px solid rgba(212, 175, 55, 0.12);">
+                <span id="pageInfo" class="small" style="color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 0.04em;"></span>
                 <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-outline-secondary" id="prevPage" disabled>Prev</button>
-                    <button class="btn btn-sm btn-outline-secondary" id="nextPage" disabled>Next</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="prevPage" disabled>&larr; Prev</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="nextPage" disabled>Next &rarr;</button>
                 </div>
             </div>
         </div>

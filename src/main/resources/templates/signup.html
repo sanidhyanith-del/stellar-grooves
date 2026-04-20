@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#ff3b1f">
-    <title>Stellar Grooves - Sign Up</title>
+    <meta name="theme-color" content="#e8341a">
+    <title>Stellar Grooves — Open an Account</title>
     <link rel="icon" th:href="@{/images/logo.png}" type="image/png">
     <link rel="apple-touch-icon" th:href="@{/images/icon-192.png}">
     <link rel="manifest" th:href="@{/manifest.json}">
@@ -12,53 +12,73 @@
     <link rel="stylesheet" th:href="@{/css/main.css}">
 </head>
 <body>
-    <div class="auth-wrapper">
-        <div class="auth-card">
-            <div class="card">
-                <div class="card-body p-4">
-                    <div class="logo-container">
-                        <img th:src="@{/images/stellar-grooves-logo.svg}" alt="Stellar Grooves" style="height:auto; width:100%; max-width:360px;">
-                        <p class="auth-subtitle mt-2">Create your account</p>
+    <div class="sg-auth">
+        <section class="sg-auth-stage">
+            <div class="sg-auth-brand">
+                <img th:src="@{/images/stellar-grooves-logo-nav.svg}" alt="Stellar Grooves">
+                <span>Stellar Grooves</span>
+            </div>
+
+            <div class="sg-auth-headline">
+                <div class="sg-auth-kicker">New Member</div>
+                <h1 class="sg-auth-title">Pick a name.<br>Pick a <em>sound</em>.</h1>
+                <p class="sg-auth-lede">Create a free account and we'll set you up with a private library — scans, playlists, ratings, crossfade, the whole jukebox. Nothing leaves your server.</p>
+            </div>
+
+            <div class="sg-auth-footer">
+                <span>Private</span>
+                <span>No Ads</span>
+                <span>Your Files</span>
+            </div>
+        </section>
+
+        <section class="sg-auth-panel">
+            <div class="sg-auth-card">
+                <div class="logo-container">
+                    <img th:src="@{/images/stellar-grooves-logo.svg}" alt="Stellar Grooves" class="img-full" style="max-width:300px;">
+                </div>
+
+                <h2 class="sg-auth-card-title">Open an Account</h2>
+                <div class="sg-auth-card-sub">Three fields &middot; No card required</div>
+
+                <div id="message" class="alert d-none" role="alert"></div>
+
+                <form id="signupForm" novalidate>
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" id="username" class="form-control"
+                               minlength="3" maxlength="20" required autocomplete="username"
+                               placeholder="3–20 characters">
+                        <div class="invalid-feedback">Username must be 3–20 characters.</div>
                     </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" id="email" class="form-control"
+                               required autocomplete="email"
+                               placeholder="you@domain.com">
+                        <div class="invalid-feedback">Please enter a valid email address.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" id="password" class="form-control"
+                               minlength="8" required autocomplete="new-password"
+                               placeholder="Min 8 chars &middot; Upper + lower + digit">
+                        <div class="invalid-feedback">Password must be at least 8 characters with uppercase, lowercase, and a digit.</div>
+                    </div>
+                    <button class="btn btn-primary w-100 mt-2 btn-lg" type="submit" id="registerBtn">
+                        <span id="registerSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
+                        Create Account
+                    </button>
+                </form>
 
-                    <div id="message" class="alert d-none" role="alert"></div>
-
-                    <form id="signupForm" novalidate>
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Username</label>
-                            <input type="text" id="username" class="form-control"
-                                   minlength="3" maxlength="20" required autocomplete="username"
-                                   placeholder="3–20 characters">
-                            <div class="invalid-feedback">Username must be 3–20 characters.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email address</label>
-                            <input type="email" id="email" class="form-control"
-                                   required autocomplete="email">
-                            <div class="invalid-feedback">Please enter a valid email address.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Password</label>
-                            <input type="password" id="password" class="form-control"
-                                   minlength="8" required autocomplete="new-password"
-                                   placeholder="Min 8 chars, upper + lower + digit">
-                            <div class="invalid-feedback">Password must be at least 8 characters with uppercase, lowercase, and a digit.</div>
-                        </div>
-                        <button class="btn btn-primary w-100 mt-1" type="submit" id="registerBtn">
-                            <span id="registerSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
-                            Create Account
-                        </button>
-                    </form>
-
-                    <p class="text-center mt-3 mb-0 text-secondary-themed">
-                        Already have an account? <a href="/login">Sign In</a>
-                    </p>
-                    <p class="text-center mt-2 mb-0 text-secondary-themed" style="font-size: 0.82rem;">
-                        <a href="/help">Help &amp; User Guide</a>
-                    </p>
+                <div class="sg-auth-card-foot">
+                    Already a member? <a href="/login">Sign in</a>
+                </div>
+                <div class="sg-auth-card-foot sg-auth-card-foot-small">
+                    <a href="/help">User Guide &amp; Help</a>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 
     <script th:src="@{/js/signup.js}"></script>
