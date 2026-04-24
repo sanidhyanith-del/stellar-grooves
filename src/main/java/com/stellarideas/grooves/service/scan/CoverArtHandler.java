@@ -32,6 +32,10 @@ public class CoverArtHandler {
     @Value("${stellar.grooves.coverArt.maxBytesPerUser:524288000}")
     private long maxBytesPerUser;
 
+    /** Global ceiling across all users; 0 disables the check. */
+    @Value("${stellar.grooves.coverArt.maxBytesGlobal:10737418240}")
+    private long maxBytesGlobal;
+
     private final CoverArtRepository repository;
 
     public CoverArtHandler(CoverArtRepository repository) {
@@ -93,6 +97,15 @@ public class CoverArtHandler {
                 logger.debug("Cover art quota would overflow for user '{}' (live={} + {}), skipping",
                         userId, live, len);
                 return 0;
+            }
+            if (maxBytesGlobal > 0) {
+                Long liveGlobal = repository.getTotalCoverArtSize();
+                if (liveGlobal != null && liveGlobal + len > maxBytesGlobal) {
+                    budget.exhausted = true;
+                    logger.warn("Global cover art quota reached ({} + {} > {}), skipping further extraction for user '{}'",
+                            liveGlobal, len, maxBytesGlobal, userId);
+                    return 0;
+                }
             }
             CoverArt art = new CoverArt();
             art.setUserId(userId);

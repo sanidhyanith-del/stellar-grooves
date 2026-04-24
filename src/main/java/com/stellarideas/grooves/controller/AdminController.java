@@ -8,6 +8,7 @@ import com.stellarideas.grooves.repository.PlayEventRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.security.CurrentUser;
+import com.stellarideas.grooves.service.AdminRateLimiter;
 import com.stellarideas.grooves.service.AuditService;
 import com.stellarideas.grooves.service.MessageHelper;
 import com.stellarideas.grooves.service.MusicCatalogService;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,11 +44,13 @@ public class AdminController {
     private final MessageHelper msg;
     private final AuditService auditService;
     private final MusicCatalogService catalogService;
+    private final AdminRateLimiter adminRateLimiter;
 
     public AdminController(UserRepository userRepository, MusicFileRepository musicFileRepository,
                            PlaylistRepository playlistRepository, CoverArtRepository coverArtRepository,
                            PlayEventRepository playEventRepository,
-                           MessageHelper msg, AuditService auditService, MusicCatalogService catalogService) {
+                           MessageHelper msg, AuditService auditService, MusicCatalogService catalogService,
+                           AdminRateLimiter adminRateLimiter) {
         this.userRepository = userRepository;
         this.musicFileRepository = musicFileRepository;
         this.playlistRepository = playlistRepository;
@@ -55,6 +59,18 @@ public class AdminController {
         this.msg = msg;
         this.auditService = auditService;
         this.catalogService = catalogService;
+        this.adminRateLimiter = adminRateLimiter;
+    }
+
+    private ResponseEntity<?> rateLimit(User admin, String operation) {
+        if (!adminRateLimiter.tryAcquire(admin.getId(), operation)) {
+            long retryAfter = adminRateLimiter.secondsUntilAllowed(admin.getId(), operation);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .header("Retry-After", String.valueOf(retryAfter))
+                    .body(GlobalExceptionHandler.problem(HttpStatus.TOO_MANY_REQUESTS,
+                            "Admin rate limit exceeded for " + operation + ". Please try again later."));
+        }
+        return null;
     }
 
     @Operation(summary = "System stats", description = "Get total users, files, and playlists counts")
@@ -72,6 +88,8 @@ public class AdminController {
             @CurrentUser User admin,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + PaginationDefaults.DEFAULT_PAGE_SIZE) int size) {
+        ResponseEntity<?> throttle = rateLimit(admin, "list-users");
+        if (throttle != null) return throttle;
         auditService.log(admin.getUsername(), AuditService.Action.ADMIN_VIEW_USERS);
         int effectiveSize = PaginationDefaults.clamp(size, PaginationDefaults.ADMIN_MAX_PAGE_SIZE);
         Page<User> result = userRepository.findAll(PageRequest.of(page, effectiveSize));
@@ -125,6 +143,8 @@ public class AdminController {
     @Transactional
     @DeleteMapping("/users/{id}")
     public ResponseEntity<?> deleteUser(@CurrentUser User admin, @PathVariable String id) {
+        ResponseEntity<?> throttle = rateLimit(admin, "delete-user");
+        if (throttle != null) return throttle;
         return userRepository.findById(id)
                 .map(user -> {
                     long fileCount = musicFileRepository.deleteByUserId(user.getId());
@@ -160,6 +180,8 @@ public class AdminController {
             @CurrentUser User admin,
             @PathVariable String artist,
             @RequestBody Map<String, List<String>> body) {
+        ResponseEntity<?> throttle = rateLimit(admin, "catalog-edit");
+        if (throttle != null) return throttle;
         List<String> genreNames = body.get("genres");
         if (genreNames == null || genreNames.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -184,6 +206,8 @@ public class AdminController {
 
     @DeleteMapping("/catalog/{artist}")
     public ResponseEntity<?> deleteCatalogEntry(@CurrentUser User admin, @PathVariable String artist) {
+        ResponseEntity<?> throttle = rateLimit(admin, "catalog-edit");
+        if (throttle != null) return throttle;
         boolean removed = catalogService.removeCatalogEntry(artist);
         if (!removed) {
             return ResponseEntity.notFound().build();
@@ -195,6 +219,8 @@ public class AdminController {
 
     @PostMapping("/catalog/reload")
     public ResponseEntity<?> reloadCatalog(@CurrentUser User admin) {
+        ResponseEntity<?> throttle = rateLimit(admin, "catalog-reload");
+        if (throttle != null) return throttle;
         catalogService.reloadCatalog();
         auditService.log(admin.getUsername(), AuditService.Action.ADMIN_UPDATE_CATALOG, "catalog reloaded");
         return ResponseEntity.ok(Map.of("message", "Catalog reloaded", "count", catalogService.catalogSize()));

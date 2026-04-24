@@ -161,4 +161,41 @@ class CoverArtExtractionTest {
                 "Second call for same album should return true without re-saving");
         verify(coverArtRepository, times(1)).save(any());
     }
+
+    @Test
+    void globalQuotaBlocksWriteWhenExceeded() {
+        CoverArtHandler globalHandler = ScannerTestFactory.newCoverArtHandler(
+                coverArtRepository, 10_485_760, 524_288_000L, /* maxBytesGlobal */ 100L);
+        when(coverArtRepository.getTotalCoverArtSizeByUserId("user1")).thenReturn(0L);
+        when(coverArtRepository.getTotalCoverArtSize()).thenReturn(95L);
+        when(coverArtRepository.findByUserIdAndArtistAndAlbum("user1", "Artist", "Album"))
+                .thenReturn(Optional.empty());
+        CoverArtHandler.Budget b = globalHandler.newBudget("user1");
+
+        Tag tag = mock(Tag.class);
+        Artwork artwork = mock(Artwork.class);
+        when(tag.getFirstArtwork()).thenReturn(artwork);
+        // 10 bytes would push us from 95 to 105, over the 100 cap
+        when(artwork.getBinaryData()).thenReturn(new byte[10]);
+
+        assertFalse(globalHandler.process(tag, "user1", "Artist", "Album", b));
+        verify(coverArtRepository, never()).save(any());
+        assertTrue(b.isExhausted());
+    }
+
+    @Test
+    void globalQuotaDisabledWhenZero() {
+        // Default-constructed handler has maxBytesGlobal=0 (disabled); verify writes still succeed
+        Tag tag = mock(Tag.class);
+        Artwork artwork = mock(Artwork.class);
+        when(tag.getFirstArtwork()).thenReturn(artwork);
+        when(artwork.getBinaryData()).thenReturn(new byte[]{1, 2, 3});
+        when(artwork.getMimeType()).thenReturn("image/jpeg");
+        when(coverArtRepository.findByUserIdAndArtistAndAlbum("user1", "Artist", "Album"))
+                .thenReturn(Optional.empty());
+
+        assertTrue(handler.process(tag, "user1", "Artist", "Album", budget));
+        verify(coverArtRepository).save(any());
+        verify(coverArtRepository, never()).getTotalCoverArtSize();
+    }
 }

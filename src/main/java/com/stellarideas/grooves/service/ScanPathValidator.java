@@ -5,12 +5,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -19,29 +22,44 @@ import java.util.Set;
  * layer (defense-in-depth, since scheduled scans skip the controller).
  *
  * <p>If {@code stellar.grooves.scan.allowedBaseDirs} is configured, scan paths
- * must resolve under one of those directories. Otherwise, the blocklist of
- * sensitive system paths applies.
+ * must resolve under one of those directories. Otherwise, a platform-specific
+ * blocklist of sensitive system paths applies.
  */
 @Component
 public class ScanPathValidator {
 
     private static final Logger logger = LoggerFactory.getLogger(ScanPathValidator.class);
 
-    private static final Set<String> BLOCKED_PATHS = Set.of(
+    private static final Set<String> UNIX_BLOCKED_PATHS = Set.of(
             "/etc", "/root", "/var", "/usr", "/bin", "/sbin",
             "/boot", "/dev", "/proc", "/sys", "/run", "/lib",
             "/opt", "/srv", "/tmp"
     );
 
+    private static final List<String> WINDOWS_FALLBACK_PATHS = List.of(
+            "C:\\Windows",
+            "C:\\Program Files",
+            "C:\\Program Files (x86)",
+            "C:\\ProgramData"
+    );
+
     private final MessageHelper msg;
     private final List<Path> allowedBaseDirs;
+    private final boolean windows;
+    private final Set<String> blockedPaths;
 
     public ScanPathValidator(MessageHelper msg,
                              @Value("${stellar.grooves.scan.allowedBaseDirs:}") String allowedBaseDirsCsv) {
         this.msg = msg;
         this.allowedBaseDirs = parseAllowedBaseDirs(allowedBaseDirsCsv);
+        this.windows = File.separatorChar == '\\';
+        this.blockedPaths = windows ? discoverWindowsBlockedPaths() : UNIX_BLOCKED_PATHS;
         if (!this.allowedBaseDirs.isEmpty()) {
             logger.info("Scan allowlist enabled. Scan paths must resolve under: {}", this.allowedBaseDirs);
+        } else if (windows) {
+            logger.warn("Windows host detected with no SCAN_ALLOWED_BASE_DIRS configured — "
+                    + "the system-path blocklist is best-effort. Setting an allowlist is strongly recommended. "
+                    + "Blocked paths: {}", this.blockedPaths);
         }
     }
 
@@ -59,6 +77,25 @@ public class ScanPathValidator {
             }
         }
         return List.copyOf(result);
+    }
+
+    private static Set<String> discoverWindowsBlockedPaths() {
+        LinkedHashSet<String> paths = new LinkedHashSet<>();
+        addIfPresent(paths, System.getenv("SystemRoot"));
+        addIfPresent(paths, System.getenv("ProgramFiles"));
+        addIfPresent(paths, System.getenv("ProgramFiles(x86)"));
+        addIfPresent(paths, System.getenv("ProgramData"));
+        // Fallbacks if the env vars weren't available for some reason
+        for (String fallback : WINDOWS_FALLBACK_PATHS) {
+            paths.add(fallback.toLowerCase(Locale.ROOT));
+        }
+        return Set.copyOf(paths);
+    }
+
+    private static void addIfPresent(Set<String> sink, String value) {
+        if (value != null && !value.isBlank()) {
+            sink.add(value.trim().toLowerCase(Locale.ROOT));
+        }
     }
 
     /**
@@ -86,14 +123,22 @@ public class ScanPathValidator {
             if (!allowed) {
                 throw new IllegalArgumentException(msg.msg("scan.path.not_allowed"));
             }
-        } else {
-            String canonicalStr = canonical.toString();
-            for (String blocked : BLOCKED_PATHS) {
-                if (canonicalStr.equals(blocked) || canonicalStr.startsWith(blocked + "/")) {
-                    throw new IllegalArgumentException(msg.msg("scan.path.not_allowed"));
-                }
-            }
+        } else if (isBlocked(canonical)) {
+            throw new IllegalArgumentException(msg.msg("scan.path.not_allowed"));
         }
         return canonical;
+    }
+
+    private boolean isBlocked(Path canonical) {
+        String canonicalStr = windows
+                ? canonical.toString().toLowerCase(Locale.ROOT)
+                : canonical.toString();
+        String sep = String.valueOf(File.separatorChar);
+        for (String blocked : blockedPaths) {
+            if (canonicalStr.equals(blocked) || canonicalStr.startsWith(blocked + sep)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
