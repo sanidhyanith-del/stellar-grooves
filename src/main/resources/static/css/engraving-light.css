@@ -1,0 +1,1084 @@
+/* ============================================================
+   Light-mode "Bone Engraving" — thrash / 90s metal album-cover
+   idiom. Bone-white surfaces, iron-black ink lines, cross-hatch
+   shading, single thrash-red ribbon accent, corroded brass
+   small-parts. Reads like ...And Justice for All cover art.
+   This file is loaded LAST so it overrides earlier light-mode
+   styles. To revert to the cream/walnut light skin, remove the
+   @import line in main.css.
+   ============================================================ */
+
+/* ── Token overrides ──────────────────────────────────────── */
+[data-theme="light"] {
+    /* Bone ramp — page → elevated → bright */
+    --bone:           #e8e0d2;
+    --bone-light:     #efe9dc;
+    --bone-bright:    #f5f0e3;
+    --bone-edge:      #d8cfbd;   /* darker margin / vignette */
+
+    /* Inks & metal */
+    --iron-black:     #191612;
+    --iron-soft:      #2d2620;
+    --tarnished:      #86807a;   /* steel — used for fine rules */
+    --corroded-brass: #9a7a1f;   /* vinyl medallion, small accents */
+
+    /* Single accent — thrash crimson */
+    --thrash-red:     #a01818;
+    --thrash-deep:    #6e0c0c;
+    --thrash-rust:    #b34020;   /* hover */
+
+    /* Map onto the existing palette tokens */
+    --ink-0: var(--bone);
+    --ink-1: var(--bone-light);
+    --ink-2: var(--bone-light);
+    --ink-3: var(--bone-bright);
+    --ink-4: var(--bone-bright);
+    --ink-5: #ffffff;
+
+    --bg-primary:   var(--bone);
+    --bg-secondary: var(--bone-light);
+    --bg-card:      var(--bone-bright);
+    --border-color: var(--iron-black);
+
+    --ruby:        var(--thrash-red);
+    --ruby-hot:    var(--thrash-rust);
+    --ruby-deep:   var(--thrash-deep);
+    --amber:       var(--thrash-red);
+    --amber-hot:   var(--thrash-rust);
+    --honey:       var(--iron-black);
+    --tungsten:    var(--iron-black);
+    --accent:      var(--thrash-red);
+    --accent-hover:var(--thrash-rust);
+    --deep-accent: var(--thrash-deep);
+
+    --text-primary:   var(--iron-black);
+    --text-secondary: var(--iron-soft);
+    --text-muted:     #4a4239;
+    --text-faint:     #6f6557;
+
+    --focus-ring: var(--thrash-red);
+
+    /* Shadows — engraved relief, not drop shadow */
+    --shadow-panel:  0 1px 0 rgba(0, 0, 0, 0.10), 0 0 0 1px var(--iron-black);
+    --shadow-room:   0 2px 0 rgba(0, 0, 0, 0.10), 0 0 0 1.5px var(--iron-black);
+    --shadow-chrome: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    --shadow:        var(--shadow-panel);
+
+    /* Engraved type — chisel-cut relief on bone */
+    --engrave-sm:
+        0 1px 0 rgba(255, 255, 255, 0.55);
+    --engrave-md:
+        0 1px 0 rgba(255, 255, 255, 0.6),
+        0 -1px 0 rgba(45, 38, 32, 0.18);
+    --engrave-lg:
+        0 1px 0 rgba(255, 255, 255, 0.7),
+        0 2px 0 rgba(255, 255, 255, 0.35),
+        0 -1px 0 rgba(45, 38, 32, 0.28);
+
+    /* Cross-hatch — the signature texture. 45° + -45° lines. */
+    --xhatch-fine:
+        repeating-linear-gradient(45deg,
+            transparent 0 5px,
+            rgba(25, 22, 18, 0.05) 5px 5.7px),
+        repeating-linear-gradient(-45deg,
+            transparent 0 5px,
+            rgba(25, 22, 18, 0.05) 5px 5.7px);
+    --xhatch-med:
+        repeating-linear-gradient(45deg,
+            transparent 0 3.5px,
+            rgba(25, 22, 18, 0.13) 3.5px 4.2px),
+        repeating-linear-gradient(-45deg,
+            transparent 0 3.5px,
+            rgba(25, 22, 18, 0.13) 3.5px 4.2px);
+    --xhatch-dense:
+        repeating-linear-gradient(45deg,
+            transparent 0 2px,
+            rgba(25, 22, 18, 0.22) 2px 2.8px),
+        repeating-linear-gradient(-45deg,
+            transparent 0 2px,
+            rgba(25, 22, 18, 0.22) 2px 2.8px);
+    /* Single-direction hatch — for "shaded face" of engraved letters */
+    --hatch-single:
+        repeating-linear-gradient(45deg,
+            transparent 0 3px,
+            rgba(25, 22, 18, 0.18) 3px 3.6px);
+
+    /* Concentric grooves — vinyl etching */
+    --grooves:
+        repeating-radial-gradient(circle at center,
+            rgba(25, 22, 18, 0.55) 0 1px,
+            rgba(25, 22, 18, 0.20) 1px 2px,
+            rgba(25, 22, 18, 0.55) 2px 3px);
+
+    /* Foxing — old-paper edge stains */
+    --foxing:
+        radial-gradient(ellipse at 12% 18%, rgba(122, 88, 30, 0.10), transparent 35%),
+        radial-gradient(ellipse at 88% 82%, rgba(122, 88, 30, 0.08), transparent 35%),
+        radial-gradient(ellipse at 78% 12%, rgba(155, 100, 35, 0.06), transparent 25%);
+}
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+        --bone:           #e8e0d2;
+        --bone-light:     #efe9dc;
+        --bone-bright:    #f5f0e3;
+        --bone-edge:      #d8cfbd;
+        --iron-black:     #191612;
+        --iron-soft:      #2d2620;
+        --tarnished:      #86807a;
+        --corroded-brass: #9a7a1f;
+        --thrash-red:     #a01818;
+        --thrash-deep:    #6e0c0c;
+        --thrash-rust:    #b34020;
+
+        --ink-0: var(--bone);
+        --ink-1: var(--bone-light);
+        --ink-2: var(--bone-light);
+        --ink-3: var(--bone-bright);
+        --ink-4: var(--bone-bright);
+        --ink-5: #ffffff;
+        --bg-primary:   var(--bone);
+        --bg-secondary: var(--bone-light);
+        --bg-card:      var(--bone-bright);
+        --border-color: var(--iron-black);
+        --ruby:        var(--thrash-red);
+        --ruby-hot:    var(--thrash-rust);
+        --ruby-deep:   var(--thrash-deep);
+        --amber:       var(--thrash-red);
+        --amber-hot:   var(--thrash-rust);
+        --honey:       var(--iron-black);
+        --tungsten:    var(--iron-black);
+        --accent:      var(--thrash-red);
+        --accent-hover:var(--thrash-rust);
+        --deep-accent: var(--thrash-deep);
+        --text-primary:   var(--iron-black);
+        --text-secondary: var(--iron-soft);
+        --text-muted:     #4a4239;
+        --text-faint:     #6f6557;
+        --focus-ring: var(--thrash-red);
+        --shadow-panel:  0 1px 0 rgba(0, 0, 0, 0.10), 0 0 0 1px var(--iron-black);
+        --shadow-room:   0 2px 0 rgba(0, 0, 0, 0.10), 0 0 0 1.5px var(--iron-black);
+        --shadow-chrome: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        --shadow:        var(--shadow-panel);
+        --engrave-sm: 0 1px 0 rgba(255, 255, 255, 0.55);
+        --engrave-md: 0 1px 0 rgba(255, 255, 255, 0.6), 0 -1px 0 rgba(45, 38, 32, 0.18);
+        --engrave-lg:
+            0 1px 0 rgba(255, 255, 255, 0.7),
+            0 2px 0 rgba(255, 255, 255, 0.35),
+            0 -1px 0 rgba(45, 38, 32, 0.28);
+        --xhatch-fine:
+            repeating-linear-gradient(45deg, transparent 0 5px, rgba(25, 22, 18, 0.05) 5px 5.7px),
+            repeating-linear-gradient(-45deg, transparent 0 5px, rgba(25, 22, 18, 0.05) 5px 5.7px);
+        --xhatch-med:
+            repeating-linear-gradient(45deg, transparent 0 3.5px, rgba(25, 22, 18, 0.13) 3.5px 4.2px),
+            repeating-linear-gradient(-45deg, transparent 0 3.5px, rgba(25, 22, 18, 0.13) 3.5px 4.2px);
+        --xhatch-dense:
+            repeating-linear-gradient(45deg, transparent 0 2px, rgba(25, 22, 18, 0.22) 2px 2.8px),
+            repeating-linear-gradient(-45deg, transparent 0 2px, rgba(25, 22, 18, 0.22) 2px 2.8px);
+        --hatch-single:
+            repeating-linear-gradient(45deg, transparent 0 3px, rgba(25, 22, 18, 0.18) 3px 3.6px);
+        --grooves:
+            repeating-radial-gradient(circle at center,
+                rgba(25, 22, 18, 0.55) 0 1px,
+                rgba(25, 22, 18, 0.20) 1px 2px,
+                rgba(25, 22, 18, 0.55) 2px 3px);
+        --foxing:
+            radial-gradient(ellipse at 12% 18%, rgba(122, 88, 30, 0.10), transparent 35%),
+            radial-gradient(ellipse at 88% 82%, rgba(122, 88, 30, 0.08), transparent 35%),
+            radial-gradient(ellipse at 78% 12%, rgba(155, 100, 35, 0.06), transparent 25%);
+    }
+}
+
+/* ── Body — bone page with fine cross-hatch shading ──────── */
+[data-theme="light"] body,
+:root:not([data-theme="dark"]) body {
+    background-color: var(--bone);
+    background-image:
+        var(--foxing),
+        var(--xhatch-fine),
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 50%, var(--bone-edge) 100%);
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) body {
+    background-color: var(--bone);
+    background-image:
+        var(--foxing),
+        var(--xhatch-fine),
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 50%, var(--bone-edge) 100%);
+} }
+
+[data-theme="light"] body::before,
+:root:not([data-theme="dark"]) body::before { display: none; }
+
+/* ── Engraved typography — chisel-cut relief on bone ─────── */
+[data-theme="light"] .navbar-brand,
+[data-theme="light"] .card-title,
+[data-theme="light"] .stat-value,
+[data-theme="light"] .wurl-title,
+:root:not([data-theme="dark"]) .navbar-brand,
+:root:not([data-theme="dark"]) .card-title,
+:root:not([data-theme="dark"]) .stat-value,
+:root:not([data-theme="dark"]) .wurl-title {
+    color: var(--iron-black) !important;
+    text-shadow: var(--engrave-lg) !important;
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+}
+[data-theme="light"] .card-header,
+[data-theme="light"] .section-label,
+:root:not([data-theme="dark"]) .card-header,
+:root:not([data-theme="dark"]) .section-label {
+    color: var(--iron-black) !important;
+    text-shadow: var(--engrave-md) !important;
+    font-family: var(--font-display);
+    letter-spacing: 0.18em;
+}
+/* Sub-1rem labels: skip the relief (per the legibility rule) */
+[data-theme="light"] .section-label-sm,
+[data-theme="light"] .nav-link,
+:root:not([data-theme="dark"]) .section-label-sm,
+:root:not([data-theme="dark"]) .nav-link {
+    color: var(--iron-soft) !important;
+    text-shadow: none !important;
+}
+
+/* ── Cards — bone plates with engraved double-rule border ── */
+[data-theme="light"] .card,
+:root:not([data-theme="dark"]) .card {
+    background:
+        var(--xhatch-fine),
+        var(--bone-bright);
+    border: 1.5px solid var(--iron-black);
+    border-radius: 0;
+    /* Double-rule effect: outer 1.5px line + inner 1px tarnished line */
+    box-shadow:
+        inset 0 0 0 3px var(--bone-bright),
+        inset 0 0 0 4px var(--tarnished),
+        0 1px 0 rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+[data-theme="light"] .card::before,
+:root:not([data-theme="dark"]) .card::before { display: none; }
+
+[data-theme="light"] .card-header,
+:root:not([data-theme="dark"]) .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--iron-black);
+    box-shadow:
+        inset 0 -2px 0 var(--bone-bright),
+        inset 0 -3px 0 var(--tarnished);
+    padding: 0.85rem 1.25rem;
+}
+/* Card-header LIVE pulse-dot → engraved blood drop */
+[data-theme="light"] .card-header::before,
+:root:not([data-theme="dark"]) .card-header::before {
+    background: var(--thrash-red);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 200, 200, 0.5),
+        0 0 0 1px var(--iron-black);
+    animation: none;
+    width: 8px; height: 8px;
+}
+
+/* ── Section labels — red engraved rule beneath ──────────── */
+[data-theme="light"] .section-label,
+:root:not([data-theme="dark"]) .section-label {
+    font-weight: 400;
+    text-transform: uppercase;
+    border-bottom: 1.5px solid var(--thrash-red);
+    padding-bottom: 3px;
+    display: inline-block;
+}
+
+/* ── Playlist items — bone rows, red ribbon on active ────── */
+[data-theme="light"] .playlist-item,
+:root:not([data-theme="dark"]) .playlist-item {
+    border-radius: 0;
+    border: 1px solid transparent;
+    border-bottom: 1px dotted rgba(25, 22, 18, 0.18);
+    transition: background 0.12s var(--ease-out-soft);
+}
+/* The amber-bar pseudo becomes a thick crimson ribbon on the left */
+[data-theme="light"] .playlist-item::before,
+:root:not([data-theme="dark"]) .playlist-item::before {
+    background: var(--thrash-red) !important;
+    box-shadow: inset 0 0 0 1px var(--thrash-deep) !important;
+    border-radius: 0 !important;
+    width: 4px !important;
+    left: 0 !important;
+}
+[data-theme="light"] .playlist-item:hover,
+:root:not([data-theme="dark"]) .playlist-item:hover {
+    background: var(--bone-light);
+    border-color: var(--iron-black);
+    border-bottom-color: var(--iron-black);
+    border-bottom-style: solid;
+}
+[data-theme="light"] .playlist-item.active,
+:root:not([data-theme="dark"]) .playlist-item.active {
+    background:
+        var(--xhatch-fine),
+        var(--bone-bright);
+    border: 1px solid var(--iron-black);
+    border-bottom-style: solid;
+}
+[data-theme="light"] .playlist-item.active::before,
+:root:not([data-theme="dark"]) .playlist-item.active::before {
+    height: 100% !important;
+    top: 0 !important;
+    transform: none !important;
+}
+[data-theme="light"] .playlist-item-name,
+:root:not([data-theme="dark"]) .playlist-item-name {
+    color: var(--iron-black);
+    font-weight: 500;
+}
+[data-theme="light"] .playlist-item:hover .playlist-item-name,
+:root:not([data-theme="dark"]) .playlist-item:hover .playlist-item-name {
+    color: var(--iron-black);
+    text-shadow: none;
+}
+[data-theme="light"] .playlist-item.active .playlist-item-name,
+:root:not([data-theme="dark"]) .playlist-item.active .playlist-item-name {
+    color: var(--iron-black);
+    text-shadow: var(--engrave-sm);
+    font-weight: 700;
+}
+[data-theme="light"] .playlist-item-count,
+:root:not([data-theme="dark"]) .playlist-item-count {
+    color: var(--iron-soft);
+    font-family: var(--font-mono);
+}
+[data-theme="light"] .playlist-item.active .playlist-item-count,
+:root:not([data-theme="dark"]) .playlist-item.active .playlist-item-count {
+    color: var(--thrash-red);
+}
+[data-theme="light"] .playlist-empty-hint,
+:root:not([data-theme="dark"]) .playlist-empty-hint {
+    color: var(--iron-soft);
+    font-family: var(--font-stencil);
+    font-style: italic;
+}
+
+/* ── Icon buttons — engraved bone stamps ──────────────────── */
+[data-theme="light"] .btn-icon-sm,
+:root:not([data-theme="dark"]) .btn-icon-sm {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-fine);
+    border: 1.5px solid var(--iron-black);
+    color: var(--iron-black);
+    border-radius: 0;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.6),
+        inset 0 -1px 0 rgba(25, 22, 18, 0.18);
+    text-shadow: none;
+}
+[data-theme="light"] .btn-icon-sm:hover,
+:root:not([data-theme="dark"]) .btn-icon-sm:hover {
+    background: var(--thrash-red);
+    color: var(--bone-bright);
+    box-shadow: inset 0 0 0 1px var(--thrash-deep);
+}
+[data-theme="light"] .btn-icon-sm:active,
+:root:not([data-theme="dark"]) .btn-icon-sm:active {
+    box-shadow: inset 0 1px 3px rgba(25, 22, 18, 0.4);
+    transform: translate(0, 1px);
+}
+
+/* ── Primary CTA buttons — engraved blood-red plate ────────
+   The base .btn-primary is a near-black gradient relying on
+   --tungsten for contrast; in this theme --tungsten is ink-black,
+   which collapses to black-on-black until hover. Override it as
+   a thrash-red button with bone text — same idiom as the jukebox
+   play button and the wax-seal vinyl label. */
+[data-theme="light"] .btn-primary,
+:root:not([data-theme="dark"]) .btn-primary {
+    background:
+        radial-gradient(ellipse at 50% 30%,
+            var(--thrash-rust) 0%,
+            var(--thrash-red) 55%,
+            var(--thrash-deep) 100%);
+    border: 1.5px solid var(--iron-black);
+    color: var(--bone-bright) !important;
+    text-shadow: 0 1px 0 var(--thrash-deep) !important;
+    box-shadow:
+        inset 0 0 0 2px var(--bone-bright),
+        inset 0 0 0 3px var(--iron-black),
+        inset 0 1px 0 rgba(255, 200, 200, 0.25),
+        0 1px 0 rgba(0, 0, 0, 0.15);
+    border-radius: 0;
+}
+[data-theme="light"] .btn-primary:hover,
+[data-theme="light"] .btn-primary:focus,
+:root:not([data-theme="dark"]) .btn-primary:hover,
+:root:not([data-theme="dark"]) .btn-primary:focus {
+    background:
+        radial-gradient(ellipse at 50% 30%,
+            #d8401a 0%,
+            var(--thrash-rust) 55%,
+            var(--thrash-red) 100%);
+    color: var(--bone-bright) !important;
+    box-shadow:
+        inset 0 0 0 2px var(--bone-bright),
+        inset 0 0 0 3px var(--iron-black),
+        inset 0 1px 0 rgba(255, 220, 220, 0.35),
+        0 2px 0 rgba(0, 0, 0, 0.2),
+        0 0 14px rgba(160, 24, 24, 0.35);
+}
+[data-theme="light"] .btn-primary:active,
+:root:not([data-theme="dark"]) .btn-primary:active {
+    transform: translate(0, 1px);
+    box-shadow:
+        inset 0 0 0 2px var(--bone-bright),
+        inset 0 0 0 3px var(--iron-black),
+        inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+[data-theme="light"] .btn-primary:disabled,
+:root:not([data-theme="dark"]) .btn-primary:disabled {
+    background: var(--bone-edge);
+    background-image: var(--xhatch-fine);
+    color: var(--text-faint) !important;
+    text-shadow: none !important;
+    box-shadow:
+        inset 0 0 0 2px var(--bone-bright),
+        inset 0 0 0 3px var(--tarnished);
+    border-color: var(--tarnished);
+    cursor: not-allowed;
+}
+/* Kill the chrome rim-light sweep — it's a chrome motif, wrong here */
+[data-theme="light"] .btn-primary::after,
+:root:not([data-theme="dark"]) .btn-primary::after { display: none; }
+
+/* ── Theme toggle — match bone-stamp style ────────────────── */
+[data-theme="light"] .theme-toggle,
+:root:not([data-theme="dark"]) .theme-toggle {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-fine);
+    border: 1.5px solid var(--iron-black);
+    color: var(--iron-black);
+    border-radius: 0;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.6),
+        inset 0 -1px 0 rgba(25, 22, 18, 0.18);
+    text-shadow: none;
+}
+[data-theme="light"] .theme-toggle:hover,
+:root:not([data-theme="dark"]) .theme-toggle:hover {
+    background: var(--thrash-red);
+    color: var(--bone-bright);
+    box-shadow: inset 0 0 0 1px var(--thrash-deep);
+}
+
+/* ── Navbar — bone rail with engraved rule and red ribbon ── */
+[data-theme="light"] .navbar,
+:root:not([data-theme="dark"]) .navbar {
+    background: var(--bone-bright) !important;
+    background-image:
+        var(--xhatch-fine),
+        linear-gradient(180deg, var(--bone-bright) 0%, var(--bone-light) 100%) !important;
+    border-bottom: 1.5px solid var(--iron-black);
+    box-shadow:
+        0 2px 0 var(--bone-bright),
+        0 3.5px 0 var(--tarnished),
+        0 5px 0 var(--thrash-red);
+}
+[data-theme="light"] .navbar-brand,
+:root:not([data-theme="dark"]) .navbar-brand {
+    color: var(--iron-black) !important;
+}
+[data-theme="light"] .nav-link,
+:root:not([data-theme="dark"]) .nav-link {
+    color: var(--iron-soft) !important;
+    font-family: var(--font-display);
+    letter-spacing: 0.18em;
+}
+[data-theme="light"] .nav-link::after,
+:root:not([data-theme="dark"]) .nav-link::after {
+    background: var(--thrash-red);
+    box-shadow: none;
+    height: 2px;
+}
+[data-theme="light"] .nav-link:hover,
+[data-theme="light"] .nav-link.active,
+:root:not([data-theme="dark"]) .nav-link:hover,
+:root:not([data-theme="dark"]) .nav-link.active {
+    color: var(--iron-black) !important;
+}
+
+/* ============================================================
+   Wurlitzer jukebox — engraved poster of a jukebox.
+   Stroked outlines, cross-hatched shading, no chrome rainbows.
+   ============================================================ */
+
+/* Jukebox body — bone with cross-hatched shading and ink frame */
+[data-theme="light"] .wurlitzer,
+:root:not([data-theme="dark"]) .wurlitzer {
+    background:
+        var(--xhatch-med),
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 60%, var(--bone-edge) 100%);
+    border: 2px solid var(--iron-black);
+    border-radius: 0;
+    box-shadow:
+        inset 0 0 0 4px var(--bone-bright),
+        inset 0 0 0 5px var(--tarnished),
+        inset 0 0 0 6px var(--bone-bright),
+        inset 0 0 0 7px var(--iron-black),
+        0 2px 0 rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .wurlitzer::before,
+:root:not([data-theme="dark"]) .wurlitzer::before {
+    background:
+        radial-gradient(ellipse at 50% 28%,
+            rgba(160, 24, 24, 0.06) 0%,
+            transparent 60%);
+}
+
+/* Dome — engraved bone hemisphere */
+[data-theme="light"] .wurl-dome,
+:root:not([data-theme="dark"]) .wurl-dome {
+    background:
+        var(--xhatch-fine),
+        radial-gradient(circle at 50% 35%,
+            var(--bone-bright) 0%,
+            var(--bone-light) 50%,
+            var(--bone-edge) 100%);
+    border: 1.5px solid var(--iron-black);
+}
+
+/* Selection panel — bone scroll with engraved border, red wax-seal title */
+[data-theme="light"] .wurl-selection,
+:root:not([data-theme="dark"]) .wurl-selection {
+    background:
+        var(--xhatch-fine),
+        linear-gradient(180deg, var(--bone-bright) 0%, var(--bone-light) 100%);
+    box-shadow:
+        inset 0 1.5px 0 var(--iron-black),
+        inset 0 -1.5px 0 var(--iron-black),
+        inset 0 4px 0 var(--bone-bright),
+        inset 0 -4px 0 var(--bone-bright),
+        inset 0 5px 0 var(--tarnished),
+        inset 0 -5px 0 var(--tarnished);
+}
+[data-theme="light"] .wurl-title,
+:root:not([data-theme="dark"]) .wurl-title {
+    color: var(--iron-black) !important;
+    text-shadow: var(--engrave-lg) !important;
+    font-family: var(--font-display);
+    letter-spacing: 0.06em;
+}
+[data-theme="light"] .wurl-artist,
+:root:not([data-theme="dark"]) .wurl-artist {
+    color: var(--iron-soft);
+    text-shadow: var(--engrave-sm);
+    font-style: italic;
+}
+[data-theme="light"] .wurl-eq,
+:root:not([data-theme="dark"]) .wurl-eq {
+    background: var(--bone-bright);
+    border: 1.5px solid var(--iron-black);
+    border-radius: 0;
+}
+
+/* Controls panel — engraved bone face */
+[data-theme="light"] .wurl-controls-panel,
+:root:not([data-theme="dark"]) .wurl-controls-panel {
+    background:
+        var(--xhatch-fine),
+        var(--bone-light);
+    border-top: 1.5px solid var(--iron-black);
+    border-bottom: 1.5px solid var(--iron-black);
+    box-shadow:
+        inset 0 2px 0 var(--bone-bright),
+        inset 0 -2px 0 var(--bone-bright);
+}
+
+/* Lower grille — vertical engraved fluting (was sky-blue, jarring) */
+[data-theme="light"] .wurl-lower,
+:root:not([data-theme="dark"]) .wurl-lower {
+    background:
+        repeating-linear-gradient(
+            90deg,
+            var(--bone-bright) 0 4px,
+            var(--bone-edge) 4px 5px,
+            var(--iron-black) 5px 6px,
+            var(--bone-edge) 6px 7px,
+            var(--bone-bright) 7px 11px);
+}
+[data-theme="light"] .wurl-grille-glow,
+:root:not([data-theme="dark"]) .wurl-grille-glow {
+    background: radial-gradient(ellipse at 50% 50%,
+        rgba(160, 24, 24, 0.18), transparent 70%);
+}
+/* Starbursts — engraved sun-flares: red-hot core, ink-black spokes.
+   The default styling is a soft warm bulb on a dark grille; on bone it
+   reads as a wash. Override both the core (::before) and the rotating
+   spokes (::after) with high-contrast inked versions. */
+[data-theme="light"] .wurl-starburst,
+:root:not([data-theme="dark"]) .wurl-starburst {
+    filter: none;
+    opacity: 1;
+    z-index: 3;
+}
+[data-theme="light"] .wurl-starburst::before,
+:root:not([data-theme="dark"]) .wurl-starburst::before {
+    background:
+        radial-gradient(circle at 50% 50%,
+            var(--thrash-rust) 0%,
+            var(--thrash-red) 30%,
+            var(--thrash-deep) 55%,
+            var(--iron-black) 75%,
+            transparent 85%);
+    box-shadow:
+        0 0 0 1.5px var(--iron-black),
+        0 0 8px rgba(160, 24, 24, 0.45);
+}
+[data-theme="light"] .wurl-starburst::after,
+:root:not([data-theme="dark"]) .wurl-starburst::after {
+    background:
+        conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            var(--iron-black) 6deg,
+            transparent 14deg,
+            transparent 45deg,
+            var(--iron-black) 51deg,
+            transparent 59deg,
+            transparent 90deg,
+            var(--iron-black) 96deg,
+            transparent 104deg,
+            transparent 135deg,
+            var(--iron-black) 141deg,
+            transparent 149deg,
+            transparent 180deg,
+            var(--iron-black) 186deg,
+            transparent 194deg,
+            transparent 225deg,
+            var(--iron-black) 231deg,
+            transparent 239deg,
+            transparent 270deg,
+            var(--iron-black) 276deg,
+            transparent 284deg,
+            transparent 315deg,
+            var(--iron-black) 321deg,
+            transparent 329deg,
+            transparent 360deg);
+    /* Mask spokes to a ring so the red core stays visible */
+    -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 22%, #000 28% 100%);
+            mask: radial-gradient(circle at 50% 50%, transparent 0 22%, #000 28% 100%);
+}
+
+/* Chrome strips → engraved double-rule */
+[data-theme="light"] .wurl-chrome-strip,
+:root:not([data-theme="dark"]) .wurl-chrome-strip {
+    background:
+        linear-gradient(180deg,
+            var(--iron-black) 0%, var(--iron-black) 14%,
+            var(--bone-bright) 14%, var(--bone-bright) 86%,
+            var(--iron-black) 86%, var(--iron-black) 100%);
+}
+[data-theme="light"] .wurl-chrome-deco,
+:root:not([data-theme="dark"]) .wurl-chrome-deco {
+    background: var(--thrash-red);
+    border: 1.5px solid var(--iron-black);
+    box-shadow: inset 0 1px 0 rgba(255, 200, 200, 0.3);
+}
+
+/* Bubble tubes → engraved fluted columns (no rainbow) */
+[data-theme="light"] .wurl-bubble-tube,
+:root:not([data-theme="dark"]) .wurl-bubble-tube {
+    background:
+        repeating-linear-gradient(
+            90deg,
+            var(--bone-light) 0 2px,
+            var(--iron-black) 2px 2.6px,
+            var(--bone-bright) 2.6px 5px);
+    border: 1.5px solid var(--iron-black);
+}
+[data-theme="light"] .wurl-tube-glass,
+:root:not([data-theme="dark"]) .wurl-tube-glass {
+    background: linear-gradient(180deg,
+        rgba(160, 24, 24, 0.18) 0%,
+        rgba(160, 24, 24, 0.32) 50%,
+        rgba(110, 12, 12, 0.42) 100%);
+}
+/* Kill the bubble animations — engraving doesn't bubble */
+[data-theme="light"] .wurl-bubbles,
+:root:not([data-theme="dark"]) .wurl-bubbles { display: none; }
+
+/* Pilasters — ink columns flanking the selection scroll */
+[data-theme="light"] .wurl-pilaster,
+:root:not([data-theme="dark"]) .wurl-pilaster {
+    background:
+        var(--hatch-single),
+        linear-gradient(90deg, var(--bone-edge) 0%, var(--bone-bright) 50%, var(--bone-edge) 100%);
+    border-left: 1px solid var(--iron-black);
+    border-right: 1px solid var(--iron-black);
+}
+
+/* ── Arches — stroked outlines with cross-hatch fill bands ── */
+[data-theme="light"] .wurl-arch-outer,
+:root:not([data-theme="dark"]) .wurl-arch-outer {
+    background: var(--iron-black);
+}
+[data-theme="light"] .wurl-arch-amber,
+:root:not([data-theme="dark"]) .wurl-arch-amber {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-dense);
+}
+[data-theme="light"] .wurl-arch-gold,
+:root:not([data-theme="dark"]) .wurl-arch-gold {
+    background: var(--iron-black);
+}
+[data-theme="light"] .wurl-arch-inner,
+:root:not([data-theme="dark"]) .wurl-arch-inner {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-med);
+}
+[data-theme="light"] .wurl-arch-pink,
+:root:not([data-theme="dark"]) .wurl-arch-pink {
+    background: var(--thrash-red);
+}
+
+/* ── Side selection panels — engraved bone tablet ─────────── */
+[data-theme="light"] .wurl-side-panel,
+:root:not([data-theme="dark"]) .wurl-side-panel {
+    background:
+        var(--xhatch-fine),
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone-edge) 100%);
+    border: 1.5px solid var(--iron-black);
+    border-radius: 0;
+    box-shadow:
+        inset 0 0 0 3px var(--bone-bright),
+        inset 0 0 0 4px var(--tarnished),
+        0 1px 0 rgba(0, 0, 0, 0.1);
+}
+[data-theme="light"] .wurl-side-body,
+:root:not([data-theme="dark"]) .wurl-side-body {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-fine);
+    border-top: 1px solid var(--iron-black);
+    border-bottom: 1px solid var(--iron-black);
+    box-shadow:
+        inset 0 2px 0 var(--bone-bright),
+        inset 0 -2px 0 var(--bone-bright);
+}
+[data-theme="light"] .wurl-side-header,
+:root:not([data-theme="dark"]) .wurl-side-header {
+    background: transparent;
+}
+[data-theme="light"] .wurl-side-label,
+:root:not([data-theme="dark"]) .wurl-side-label {
+    color: var(--iron-black) !important;
+    text-shadow: var(--engrave-md) !important;
+    font-family: var(--font-display);
+    letter-spacing: 0.18em;
+}
+[data-theme="light"] .wurl-side-header::after,
+:root:not([data-theme="dark"]) .wurl-side-header::after {
+    background: var(--thrash-red);
+    height: 2px;
+}
+
+/* Side list rows — engraved roman ledger */
+[data-theme="light"] .wurl-side-item,
+:root:not([data-theme="dark"]) .wurl-side-item {
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: 1px dotted rgba(25, 22, 18, 0.22);
+    border-radius: 0;
+    box-shadow: none;
+    transition: background 0.1s ease, color 0.1s ease;
+}
+[data-theme="light"] .wurl-side-item:hover,
+:root:not([data-theme="dark"]) .wurl-side-item:hover {
+    background: var(--bone-light);
+    border-color: var(--iron-black);
+    border-bottom-style: solid;
+}
+[data-theme="light"] .wurl-side-item.wurl-side-active,
+:root:not([data-theme="dark"]) .wurl-side-item.wurl-side-active {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-fine);
+    border-color: var(--iron-black);
+    border-bottom-style: solid;
+    border-left: 4px solid var(--thrash-red);
+}
+[data-theme="light"] .wurl-side-num,
+:root:not([data-theme="dark"]) .wurl-side-num {
+    -webkit-text-fill-color: var(--corroded-brass) !important;
+    color: var(--corroded-brass) !important;
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-shadow: var(--engrave-sm);
+}
+[data-theme="light"] .wurl-side-item:hover .wurl-side-num,
+:root:not([data-theme="dark"]) .wurl-side-item:hover .wurl-side-num {
+    -webkit-text-fill-color: var(--thrash-red) !important;
+    color: var(--thrash-red) !important;
+}
+[data-theme="light"] .wurl-side-item.wurl-side-active .wurl-side-num,
+:root:not([data-theme="dark"]) .wurl-side-item.wurl-side-active .wurl-side-num {
+    -webkit-text-fill-color: var(--thrash-red) !important;
+    color: var(--thrash-red) !important;
+}
+[data-theme="light"] .wurl-side-title,
+:root:not([data-theme="dark"]) .wurl-side-title {
+    -webkit-text-fill-color: var(--iron-black) !important;
+    color: var(--iron-black) !important;
+    font-family: var(--font-stencil);
+}
+[data-theme="light"] .wurl-side-item.wurl-side-active .wurl-side-title,
+:root:not([data-theme="dark"]) .wurl-side-item.wurl-side-active .wurl-side-title {
+    -webkit-text-fill-color: var(--iron-black) !important;
+    color: var(--iron-black) !important;
+    text-shadow: var(--engrave-sm);
+    font-weight: 700;
+}
+[data-theme="light"] .wurl-side-artist,
+:root:not([data-theme="dark"]) .wurl-side-artist {
+    -webkit-text-fill-color: var(--iron-soft) !important;
+    color: var(--iron-soft) !important;
+    font-family: var(--font-stencil);
+    font-style: italic;
+}
+
+/* ── Speaker cabinets — tarnished steel plates with engraved
+   cross-hatch shading. Distinct cool-gray tone so the cabinets
+   read as separate metal speaker boxes rather than blending into
+   the bone page; ink crosshatches at higher contrast on gray. */
+[data-theme="light"] .speaker-cabinet,
+:root:not([data-theme="dark"]) .speaker-cabinet {
+    background:
+        /* punchier crosshatch inlined here so spec is per-cabinet
+           and not at the mercy of the global --xhatch-dense alpha */
+        repeating-linear-gradient(45deg,
+            transparent 0 2px,
+            rgba(25, 22, 18, 0.34) 2px 2.8px),
+        repeating-linear-gradient(-45deg,
+            transparent 0 2px,
+            rgba(25, 22, 18, 0.34) 2px 2.8px),
+        linear-gradient(180deg,
+            #948e86 0%,
+            var(--tarnished) 50%,
+            #6e6962 100%);
+    border-left: 1.5px solid var(--iron-black);
+    border-right: 1.5px solid var(--iron-black);
+    box-shadow:
+        inset 0 0 0 3px var(--bone-bright),
+        inset 0 0 0 4px var(--iron-black),
+        0 1px 0 rgba(0, 0, 0, 0.15);
+}
+[data-theme="light"] .speaker-trim-top,
+[data-theme="light"] .speaker-trim-bottom,
+:root:not([data-theme="dark"]) .speaker-trim-top,
+:root:not([data-theme="dark"]) .speaker-trim-bottom {
+    background: var(--iron-black);
+    box-shadow: none;
+}
+[data-theme="light"] .speaker-grille-cloth,
+:root:not([data-theme="dark"]) .speaker-grille-cloth {
+    /* Original cloth was crosshatched dark on dark; here it should add fine hatch over bone */
+    opacity: 0.4;
+}
+[data-theme="light"] .speaker-driver,
+:root:not([data-theme="dark"]) .speaker-driver {
+    background:
+        radial-gradient(circle at 50% 50%,
+            var(--bone-edge) 0%,
+            var(--iron-soft) 70%,
+            var(--iron-black) 100%);
+    box-shadow:
+        0 0 0 1.5px var(--iron-black),
+        inset 0 0 0 2px var(--bone-light),
+        inset 0 0 0 3px var(--iron-black);
+}
+[data-theme="light"] .speaker-cone,
+:root:not([data-theme="dark"]) .speaker-cone {
+    background:
+        repeating-radial-gradient(
+            circle at center,
+            var(--iron-black) 0 1px,
+            var(--bone-edge) 1px 2px);
+}
+[data-theme="light"] .speaker-dust-cap,
+:root:not([data-theme="dark"]) .speaker-dust-cap {
+    background:
+        radial-gradient(circle at 40% 35%,
+            var(--bone-bright) 0%,
+            var(--bone-edge) 60%,
+            var(--iron-black) 100%);
+    box-shadow: inset 0 0 0 1px var(--iron-black);
+}
+[data-theme="light"] .speaker-badge,
+:root:not([data-theme="dark"]) .speaker-badge {
+    color: var(--corroded-brass);
+    text-shadow: var(--engrave-sm);
+    font-family: var(--font-display);
+}
+
+/* ── Vinyl placeholder — match dark-mode: black record with
+   blood-orange center label and cream label text. The default
+   styling already gives this look; we only re-assert the values
+   here so earlier light-mode overrides don't bleach it. */
+[data-theme="light"] .wurl-vinyl-record,
+:root:not([data-theme="dark"]) .wurl-vinyl-record {
+    background:
+        radial-gradient(circle at 50% 50%,
+            #1a1a1a 0%, #111 18%, #0d0d0d 36%,
+            #1a1a1a 38%, #0a0a0a 56%, #151515 75%, #111 100%);
+    border: 4px solid #222;
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.55),
+        0 0 30px rgba(255, 179, 71, 0.18),
+        inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+[data-theme="light"] .wurl-vinyl-grooves,
+:root:not([data-theme="dark"]) .wurl-vinyl-grooves {
+    opacity: 1;
+    background:
+        repeating-radial-gradient(
+            circle at center,
+            transparent 0px,
+            transparent 2px,
+            rgba(255, 255, 255, 0.04) 2.5px,
+            transparent 3px,
+            transparent 5px);
+}
+[data-theme="light"] .wurl-vinyl-label,
+:root:not([data-theme="dark"]) .wurl-vinyl-label {
+    background:
+        radial-gradient(circle at 40% 35%,
+            #ff6a3d 0%,
+            #e8451a 30%,
+            #cc3a15 60%,
+            #b33010 100%);
+    border: 2px solid rgba(180, 60, 30, 0.6);
+    box-shadow:
+        inset 0 -3px 6px rgba(0, 0, 0, 0.3),
+        inset 0 2px 3px rgba(255, 255, 255, 0.15),
+        0 0 12px rgba(255, 80, 40, 0.3);
+}
+[data-theme="light"] .wurl-label-text,
+:root:not([data-theme="dark"]) .wurl-label-text {
+    color: rgba(255, 240, 220, 0.92);
+    text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.4);
+    -webkit-text-fill-color: rgba(255, 240, 220, 0.92);
+}
+[data-theme="light"] .wurl-label-subtext,
+:root:not([data-theme="dark"]) .wurl-label-subtext {
+    color: rgba(255, 230, 200, 0.7);
+    -webkit-text-fill-color: rgba(255, 230, 200, 0.7);
+}
+[data-theme="light"] .wurl-label-hole,
+:root:not([data-theme="dark"]) .wurl-label-hole {
+    background: #0a0a0a;
+    border: 0.5px solid rgba(100, 100, 100, 0.3);
+    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+/* ── Buttons inside the jukebox — engraved bone controls ──── */
+[data-theme="light"] .btn-wurl-sm,
+:root:not([data-theme="dark"]) .btn-wurl-sm {
+    background: var(--bone-bright);
+    background-image: var(--xhatch-fine);
+    border: 1.5px solid var(--iron-black);
+    color: var(--iron-black);
+    border-radius: 0;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.6),
+        inset 0 -1px 0 rgba(25, 22, 18, 0.18);
+    text-shadow: none;
+}
+[data-theme="light"] .btn-wurl-sm:hover,
+:root:not([data-theme="dark"]) .btn-wurl-sm:hover {
+    background: var(--bone-light);
+    color: var(--thrash-red);
+    box-shadow:
+        inset 0 0 0 1px var(--thrash-red),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+[data-theme="light"] .btn-wurl-sm[aria-pressed="true"],
+:root:not([data-theme="dark"]) .btn-wurl-sm[aria-pressed="true"] {
+    background: var(--thrash-red);
+    color: var(--bone-bright);
+    box-shadow:
+        inset 0 0 0 1px var(--thrash-deep),
+        inset 0 1px 0 rgba(255, 200, 200, 0.3);
+}
+[data-theme="light"] .btn-wurl-play,
+:root:not([data-theme="dark"]) .btn-wurl-play {
+    background:
+        radial-gradient(circle at 35% 30%,
+            var(--thrash-rust) 0%,
+            var(--thrash-red) 60%,
+            var(--thrash-deep) 100%);
+    border: 1.5px solid var(--iron-black);
+    color: var(--bone-bright);
+    border-radius: 0;
+    box-shadow:
+        inset 0 0 0 2px var(--bone-bright),
+        inset 0 0 0 3px var(--iron-black),
+        0 1px 0 rgba(0, 0, 0, 0.2);
+    text-shadow: 0 1px 0 var(--thrash-deep);
+}
+[data-theme="light"] .btn-wurl-play:hover,
+:root:not([data-theme="dark"]) .btn-wurl-play:hover {
+    background:
+        radial-gradient(circle at 35% 30%,
+            var(--thrash-red) 0%,
+            var(--thrash-rust) 60%,
+            var(--thrash-red) 100%);
+}
+[data-theme="light"] .btn-wurl-play:active,
+:root:not([data-theme="dark"]) .btn-wurl-play:active {
+    box-shadow:
+        inset 0 0 0 2px var(--bone-bright),
+        inset 0 0 0 3px var(--iron-black),
+        inset 0 2px 4px rgba(0, 0, 0, 0.25);
+    transform: translate(0, 1px);
+}
+
+/* Seek/volume sliders */
+[data-theme="light"] .wurl-seek,
+[data-theme="light"] .wurl-volume,
+:root:not([data-theme="dark"]) .wurl-seek,
+:root:not([data-theme="dark"]) .wurl-volume {
+    accent-color: var(--thrash-red);
+}
+[data-theme="light"] .wurl-time,
+:root:not([data-theme="dark"]) .wurl-time {
+    color: var(--iron-black);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    text-shadow: var(--engrave-sm);
+}
+
+/* ── Hero / page heading ──────────────────────────────────── */
+[data-theme="light"] .sg-hero-tagline,
+:root:not([data-theme="dark"]) .sg-hero-tagline {
+    color: var(--iron-soft);
+    font-style: italic;
+}
+
+/* ── Stat blocks — engraved bone tiles with brass numerals ── */
+[data-theme="light"] .stat-block,
+:root:not([data-theme="dark"]) .stat-block {
+    background:
+        var(--xhatch-fine),
+        var(--bone-bright);
+    border: 1.5px solid var(--iron-black);
+    border-radius: 0;
+    box-shadow:
+        inset 0 0 0 3px var(--bone-bright),
+        inset 0 0 0 4px var(--tarnished),
+        0 1px 0 rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .stat-value,
+:root:not([data-theme="dark"]) .stat-value {
+    color: var(--iron-black) !important;
+}
+[data-theme="light"] .stat-label,
+:root:not([data-theme="dark"]) .stat-label {
+    color: var(--iron-soft);
+    border-top: 1.5px solid var(--thrash-red);
+    padding-top: 4px;
+    margin-top: 4px;
+}
