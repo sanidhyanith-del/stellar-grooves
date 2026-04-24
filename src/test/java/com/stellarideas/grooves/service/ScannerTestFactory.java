@@ -29,9 +29,16 @@ final class ScannerTestFactory {
 
     static CoverArtHandler newCoverArtHandler(CoverArtRepository coverArtRepository,
                                               int maxBytesPerImage, long maxBytesPerUser) {
+        return newCoverArtHandler(coverArtRepository, maxBytesPerImage, maxBytesPerUser, 0L);
+    }
+
+    static CoverArtHandler newCoverArtHandler(CoverArtRepository coverArtRepository,
+                                              int maxBytesPerImage, long maxBytesPerUser,
+                                              long maxBytesGlobal) {
         CoverArtHandler handler = new CoverArtHandler(coverArtRepository);
         ReflectionTestUtils.setField(handler, "maxBytesPerImage", maxBytesPerImage);
         ReflectionTestUtils.setField(handler, "maxBytesPerUser", maxBytesPerUser);
+        ReflectionTestUtils.setField(handler, "maxBytesGlobal", maxBytesGlobal);
         return handler;
     }
 

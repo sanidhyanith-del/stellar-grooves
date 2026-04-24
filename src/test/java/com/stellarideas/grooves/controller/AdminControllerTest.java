@@ -7,6 +7,7 @@ import com.stellarideas.grooves.repository.MusicFileRepository;
 import com.stellarideas.grooves.repository.PlayEventRepository;
 import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.repository.UserRepository;
+import com.stellarideas.grooves.service.AdminRateLimiter;
 import com.stellarideas.grooves.service.AuditService;
 import com.stellarideas.grooves.service.MessageHelper;
 import com.stellarideas.grooves.service.MusicCatalogService;
@@ -34,6 +35,7 @@ class AdminControllerTest {
     private PlayEventRepository playEventRepository;
     private AuditService auditService;
     private MusicCatalogService catalogService;
+    private AdminRateLimiter adminRateLimiter;
     private User adminUser;
 
     @BeforeEach
@@ -45,13 +47,16 @@ class AdminControllerTest {
         playEventRepository = mock(PlayEventRepository.class);
         auditService = mock(AuditService.class);
         catalogService = mock(MusicCatalogService.class);
+        adminRateLimiter = mock(AdminRateLimiter.class);
+        when(adminRateLimiter.tryAcquire(anyString(), anyString())).thenReturn(true);
 
         ResourceBundleMessageSource messageSource = new ResourceBundleMessageSource();
         messageSource.setBasename("messages");
         MessageHelper msgHelper = new MessageHelper(messageSource);
 
         controller = new AdminController(userRepository, musicFileRepository,
-                playlistRepository, coverArtRepository, playEventRepository, msgHelper, auditService, catalogService);
+                playlistRepository, coverArtRepository, playEventRepository, msgHelper, auditService, catalogService,
+                adminRateLimiter);
 
         adminUser = new User();
         adminUser.setId("admin1");
@@ -108,6 +113,29 @@ class AdminControllerTest {
         controller.getAllUsers(adminUser, 0, 0);
 
         verify(userRepository).findAll(PageRequest.of(0, 1));
+    }
+
+    @Test
+    void getAllUsersReturns429WhenAdminRateLimited() {
+        when(adminRateLimiter.tryAcquire("admin1", "list-users")).thenReturn(false);
+        when(adminRateLimiter.secondsUntilAllowed("admin1", "list-users")).thenReturn(30L);
+
+        ResponseEntity<?> response = controller.getAllUsers(adminUser, 0, 25);
+
+        assertEquals(429, response.getStatusCode().value());
+        assertEquals("30", response.getHeaders().getFirst("Retry-After"));
+        verifyNoInteractions(userRepository);
+        verify(auditService, never()).log(anyString(), any());
+    }
+
+    @Test
+    void deleteUserReturns429WhenAdminRateLimited() {
+        when(adminRateLimiter.tryAcquire("admin1", "delete-user")).thenReturn(false);
+
+        ResponseEntity<?> response = controller.deleteUser(adminUser, "u1");
+
+        assertEquals(429, response.getStatusCode().value());
+        verify(userRepository, never()).findById(anyString());
     }
 
     @Test
