@@ -934,6 +934,17 @@ function playNextTrack(useCrossfade) {
 }
 SG.playNextTrack = playNextTrack;
 
+function playPreviousTrack(useCrossfade) {
+    if (!SG.currentFileId) return;
+    const tracks = getPlayableTrackList(); if (tracks.length === 0) return;
+    const i = tracks.findIndex(f => f.id === SG.currentFileId);
+    if (i <= 0) return;
+    const pf = tracks[i - 1];
+    const full = allFiles.find(f => f.id === pf.id) || pf;
+    if (full.id) { playTrack(full, useCrossfade); renderPlaylistUpNext(); }
+}
+SG.playPreviousTrack = playPreviousTrack;
+
 function getPlayableTrackList() {
     // If we have an active playlist context, use it regardless of current view
     if (playlistContext && playlistContext.tracks.length > 0) return playlistContext.tracks;

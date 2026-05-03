@@ -26,7 +26,10 @@
                 <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9788;</button>
                 <a class="nav-link d-inline" th:href="@{/help}">Help</a>
                 <a class="nav-link d-inline" th:href="@{/admin}" sec:authorize="hasRole('ADMIN')">Admin</a>
-                <a class="nav-link d-inline" href="/logout">Logout</a>
+                <form th:action="@{/logout}" method="post" class="m-0">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button type="submit" class="nav-link">Logout</button>
+                </form>
             </div>
         </div>
     </nav>
@@ -217,7 +220,9 @@
                             <div class="wurl-controls">
                                 <button id="playerShuffle" class="btn-wurl-sm" title="Shuffle" aria-label="Toggle shuffle" aria-pressed="false">&#x1F500;</button>
                                 <button id="playerCrossfade" class="btn-wurl-sm" title="Crossfade (3s)" aria-label="Toggle crossfade" aria-pressed="false">&#x2728;</button>
+                                <button id="playerPrev" class="btn-wurl-sm" title="Previous track" aria-label="Previous track">&#x23EE;</button>
                                 <button id="playerPlayPause" class="btn-wurl-play" title="Play / Pause" aria-label="Play or pause">&#x25B6;</button>
+                                <button id="playerNext" class="btn-wurl-sm" title="Skip to next track" aria-label="Skip to next track">&#x23ED;</button>
                             </div>
                             <div class="wurl-seek-row">
                                 <span id="playerCurrentTime" class="wurl-time" aria-label="Current time">0:00</span>
