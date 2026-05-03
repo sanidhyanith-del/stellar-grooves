@@ -273,13 +273,27 @@ document.getElementById('playerShuffle').addEventListener('click', () => {
     b.setAttribute('aria-pressed', String(SG.shuffleEnabled));
 });
 
+// ── Skip to next track ──────────────────────────────────
+document.getElementById('playerNext').addEventListener('click', () => {
+    SG.playNextTrack(false);
+});
+
+// ── Previous track ──────────────────────────────────────
+// >3s in (or shuffle on) → restart current; otherwise walk context backwards.
+function goPrevious() {
+    if (activeAudio.currentTime > 3 || SG.shuffleEnabled) {
+        activeAudio.currentTime = 0;
+    } else {
+        SG.playPreviousTrack(false);
+    }
+}
+document.getElementById('playerPrev').addEventListener('click', goPrevious);
+
 // ── Media Session action handlers (lock screen controls) ──
 if ('mediaSession' in navigator) {
     navigator.mediaSession.setActionHandler('play', () => activeAudio.play());
     navigator.mediaSession.setActionHandler('pause', () => activeAudio.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => {
-        activeAudio.currentTime = 0;
-    });
+    navigator.mediaSession.setActionHandler('previoustrack', goPrevious);
     navigator.mediaSession.setActionHandler('nexttrack', () => {
         SG.playNextTrack(false);
     });
