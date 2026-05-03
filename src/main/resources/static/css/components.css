@@ -1044,6 +1044,15 @@ th.col-sortable:hover { color: var(--amber-hot); text-shadow: 0 0 8px rgba(255, 
     border-color: rgba(232, 52, 26, 0.2);
 }
 .playlist-item.active::before { height: 70%; }
+.playlist-item-badge {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    color: var(--ruby-deep, var(--text-muted));
+    padding-right: 0.15rem;
+    line-height: 1;
+    cursor: default;
+    user-select: none;
+}
 .playlist-item-name {
     flex: 1;
     font-size: 0.86rem;

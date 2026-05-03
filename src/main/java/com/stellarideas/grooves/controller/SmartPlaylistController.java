@@ -41,22 +41,24 @@ public class SmartPlaylistController {
 
     @GetMapping
     public List<SmartPlaylistDTO> list(@CurrentUser User user) {
-        return service.list(user.getId()).stream().map(SmartPlaylistDTO::from).collect(Collectors.toList());
+        return service.list(user.getId()).stream()
+                .map(this::dtoFor)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> get(@CurrentUser User user, @PathVariable String id) {
         return service.findByIdAndUserId(id, user.getId())
-                .<ResponseEntity<?>>map(sp -> ResponseEntity.ok(SmartPlaylistDTO.from(sp)))
+                .<ResponseEntity<?>>map(sp -> ResponseEntity.ok(dtoFor(sp)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
     public ResponseEntity<?> create(@CurrentUser User user, @Valid @RequestBody SmartPlaylistRequest body) {
         try {
-            SmartPlaylist saved = service.create(user.getId(), body.getName(), body.getQueryString());
+            SmartPlaylist saved = service.create(user.getId(), body.getName(), body.getQueryString(), body.getDescription());
             auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_CREATE, saved.getId(), saved.getName());
-            return ResponseEntity.ok(SmartPlaylistDTO.from(saved));
+            return ResponseEntity.ok(dtoFor(saved));
         } catch (QueryParseException | IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, e.getMessage()));
@@ -69,12 +71,17 @@ public class SmartPlaylistController {
         Optional<SmartPlaylist> existing = service.findByIdAndUserId(id, user.getId());
         if (existing.isEmpty()) return ResponseEntity.notFound().build();
         try {
-            SmartPlaylist saved = service.update(existing.get(), body.getName(), body.getQueryString());
+            SmartPlaylist saved = existing.get().isSubscription()
+                    ? service.renameSubscription(existing.get(), body.getName())
+                    : service.update(existing.get(), body.getName(), body.getQueryString(), body.getDescription());
             auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_UPDATE, saved.getId(), saved.getName());
-            return ResponseEntity.ok(SmartPlaylistDTO.from(saved));
+            return ResponseEntity.ok(dtoFor(saved));
         } catch (QueryParseException | IllegalArgumentException e) {
             return ResponseEntity.badRequest()
                     .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.CONFLICT, e.getMessage()));
         }
     }
 
@@ -85,6 +92,81 @@ public class SmartPlaylistController {
         service.delete(existing.get());
         auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_DELETE, id, existing.get().getName());
         return ResponseEntity.ok(Map.of("message", "Smart playlist deleted"));
+    }
+
+    // ─── Sharing / subscriptions ────────────────────────────────────────
+
+    @PostMapping("/{id}/share")
+    public ResponseEntity<?> share(@CurrentUser User user, @PathVariable String id) {
+        Optional<SmartPlaylist> existing = service.findByIdAndUserId(id, user.getId());
+        if (existing.isEmpty()) return ResponseEntity.notFound().build();
+        try {
+            SmartPlaylist shared = service.share(existing.get());
+            auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_SHARE, shared.getId(), shared.getName());
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("shareToken", shared.getShareToken());
+            body.put("shareUrl", "/api/v1/shared/smart-playlists/" + shared.getShareToken());
+            return ResponseEntity.ok(body);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.CONFLICT, e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}/share")
+    public ResponseEntity<?> revokeShare(@CurrentUser User user, @PathVariable String id) {
+        Optional<SmartPlaylist> existing = service.findByIdAndUserId(id, user.getId());
+        if (existing.isEmpty()) return ResponseEntity.notFound().build();
+        SmartPlaylist saved = service.revokeShare(existing.get());
+        auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_REVOKE_SHARE, saved.getId(), saved.getName());
+        return ResponseEntity.ok(Map.of("message", "Share link revoked"));
+    }
+
+    @PostMapping("/subscribe")
+    public ResponseEntity<?> subscribe(@CurrentUser User user, @RequestBody Map<String, String> body) {
+        String token = body == null ? null : body.get("shareToken");
+        if (token == null || token.isBlank() || token.length() > 256) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, "shareToken is required"));
+        }
+        Optional<SmartPlaylist> source = service.findByShareToken(token);
+        if (source.isEmpty() || source.get().isShareTokenExpired()) {
+            return ResponseEntity.status(HttpStatus.GONE)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.GONE, "Share link not found or expired"));
+        }
+        try {
+            SmartPlaylist sub = service.subscribe(user.getId(), source.get());
+            auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_SUBSCRIBE, sub.getId(), source.get().getName());
+            return ResponseEntity.ok(dtoFor(sub));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(GlobalExceptionHandler.problem(HttpStatus.BAD_REQUEST, e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/fork")
+    public ResponseEntity<?> fork(@CurrentUser User user, @PathVariable String id) {
+        Optional<SmartPlaylist> existing = service.findByIdAndUserId(id, user.getId());
+        if (existing.isEmpty()) return ResponseEntity.notFound().build();
+        try {
+            SmartPlaylist forked = service.fork(existing.get());
+            auditService.log(user.getUsername(), AuditService.Action.SMART_PLAYLIST_FORK, forked.getId(), forked.getName());
+            return ResponseEntity.ok(dtoFor(forked));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(GlobalExceptionHandler.problem(HttpStatus.CONFLICT, e.getMessage()));
+        }
+    }
+
+    private SmartPlaylistDTO dtoFor(SmartPlaylist sp) {
+        if (!sp.isSubscription()) return SmartPlaylistDTO.from(sp);
+        // Resolve live values from the source. If the source is gone, fall back to the
+        // last-snapshotted query so the row still renders something coherent.
+        Optional<SmartPlaylist> source = service.findSubscriptionSource(sp);
+        String resolvedQuery = source.map(SmartPlaylist::getQueryString).orElse(sp.getQueryString());
+        String resolvedDescription = source.map(SmartPlaylist::getDescription).orElse(null);
+        String curator = source.flatMap(service::findOwnerUsername).orElse(null);
+        return SmartPlaylistDTO.from(sp, resolvedQuery, resolvedDescription, curator);
     }
 
     @GetMapping("/{id}/preview")

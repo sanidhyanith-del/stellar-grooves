@@ -13,9 +13,15 @@ public class SmartPlaylistRequest {
     @Size(max = 1000)
     private String queryString;
 
+    @Size(max = 500)
+    private String description;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
     public String getQueryString() { return queryString; }
     public void setQueryString(String queryString) { this.queryString = queryString; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 }

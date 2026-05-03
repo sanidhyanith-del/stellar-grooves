@@ -77,6 +77,7 @@ SG.escapeHtml = escapeHtml;
 SG.csrfHeaders = csrfHeaders;
 SG.guardClick = guardClick;
 SG.showToast = showToast;
+SG.errorMsg = errorMsg;
 SG.navigate = (n) => navigate(n);
 SG.updateStats = () => updateStats();
 SG.renderPlaylistSidebar = () => renderPlaylistSidebar();
