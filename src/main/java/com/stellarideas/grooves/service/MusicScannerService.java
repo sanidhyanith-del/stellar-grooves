@@ -369,7 +369,7 @@ public class MusicScannerService {
                 .artist(meta.artist())
                 .album(meta.album())
                 .title(meta.title())
-                .year(meta.year())
+                .year(com.stellarideas.grooves.util.YearParser.parse(meta.year()))
                 .genre(primary)
                 .additionalGenres(additional)
                 .fileHash(hash)

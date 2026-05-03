@@ -30,12 +30,21 @@ function formatTime(s) {
 }
 
 /**
- * Extract decade string from a year (e.g. "1987" -> "1980s").
+ * Extract decade string from a year (e.g. 1987 -> "1980s"). Accepts number or
+ * string - backups predating the int-year change still serialize as strings.
  */
 function decadeFromYear(y) {
-    if (!y || y.length < 4) return '\u2014';
-    const n = parseInt(y.substring(0, 4), 10);
-    return isNaN(n) ? '\u2014' : Math.floor(n / 10) * 10 + 's';
+    if (y == null || y === '') return '\u2014';
+    let n;
+    if (typeof y === 'number') {
+        n = y;
+    } else {
+        const s = String(y);
+        if (s.length < 4) return '\u2014';
+        n = parseInt(s.substring(0, 4), 10);
+    }
+    if (isNaN(n) || n < 1000) return '\u2014';
+    return Math.floor(n / 10) * 10 + 's';
 }
 
 /**

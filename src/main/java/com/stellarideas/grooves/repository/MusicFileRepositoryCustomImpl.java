@@ -255,7 +255,10 @@ public class MusicFileRepositoryCustomImpl implements MusicFileRepositoryCustom 
             base = base.and("artist").regex(quotePattern(artist), "i");
         }
         if (year != null && !year.isBlank()) {
-            base = base.and("year").is(year);
+            Integer yearInt = com.stellarideas.grooves.util.YearParser.parse(year);
+            if (yearInt != null) {
+                base = base.and("year").is(yearInt);
+            }
         }
         if (fileExtension != null && !fileExtension.isBlank()) {
             String ext = fileExtension.startsWith(".") ? fileExtension : "." + fileExtension;
@@ -337,14 +340,16 @@ public class MusicFileRepositoryCustomImpl implements MusicFileRepositoryCustom 
         ), "music_files", Document.class).getMappedResults().size();
         stats.put("totalAlbums", totalAlbums);
 
-        // Decade distribution (null/empty years already filtered in match stage)
+        // Decade distribution: floor(year/10)*10, formatted as "1980s".
         AggregationOperation decadeGroup = context -> new Document("$group",
                 new Document("_id", new Document("$concat", List.of(
-                        new Document("$substr", List.of("$year", 0, 3)),
-                        "0s")))
+                        new Document("$toString",
+                                new Document("$subtract", List.of("$year",
+                                        new Document("$mod", List.of("$year", 10))))),
+                        "s")))
                         .append("count", new Document("$sum", 1)));
         Aggregation decadeAgg = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("userId").is(userId).and("deleted").ne(true).and("year").ne(null).ne("")),
+                Aggregation.match(Criteria.where("userId").is(userId).and("deleted").ne(true).and("year").ne(null)),
                 decadeGroup,
                 Aggregation.sort(org.springframework.data.domain.Sort.Direction.ASC, "_id")
         );

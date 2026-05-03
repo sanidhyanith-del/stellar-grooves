@@ -133,13 +133,11 @@ public class SmartPlaylistQueryTranslator {
         } else if (p instanceof QueryPredicate.TextContains tc) {
             root.and(fieldName(tc.field())).regex(Pattern.quote(tc.value()), "i");
         } else if (p instanceof QueryPredicate.IntEq ie) {
-            root.and(fieldName(ie.field())).is(intValueFor(ie.field(), ie.value()));
+            root.and(fieldName(ie.field())).is(ie.value());
         } else if (p instanceof QueryPredicate.IntRange ir) {
-            Object lo = intValueFor(ir.field(), ir.min());
-            Object hi = intValueFor(ir.field(), ir.max());
-            root.and(fieldName(ir.field())).gte(lo).lte(hi);
+            root.and(fieldName(ir.field())).gte(ir.min()).lte(ir.max());
         } else if (p instanceof QueryPredicate.IntCompare ic) {
-            Object v = intValueFor(ic.field(), ic.value());
+            int v = ic.value();
             Criteria c = root.and(fieldName(ic.field()));
             switch (ic.op()) {
                 case GT  -> c.gt(v);
@@ -172,10 +170,5 @@ public class SmartPlaylistQueryTranslator {
             case RATING     -> "rating";
             case PLAY_COUNT -> "playCount";
         };
-    }
-
-    /** Year is stored as a String; other numeric fields are stored as int. */
-    private static Object intValueFor(QueryPredicate.NumField f, int v) {
-        return f == QueryPredicate.NumField.YEAR ? String.valueOf(v) : v;
     }
 }

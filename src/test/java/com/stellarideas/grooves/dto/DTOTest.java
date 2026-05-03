@@ -107,7 +107,7 @@ class DTOTest {
                 .artist("Metallica")
                 .album("Master of Puppets")
                 .title("Battery")
-                .year("1986")
+                .year(1986)
                 .genre(Genre.THRASH_METAL)
                 .additionalGenres(List.of(Genre.HEAVY_METAL, Genre.HARD_ROCK))
                 .rating(5)
@@ -121,7 +121,7 @@ class DTOTest {
         assertEquals("Metallica", dto.getArtist());
         assertEquals("Master of Puppets", dto.getAlbum());
         assertEquals("Battery", dto.getTitle());
-        assertEquals("1986", dto.getYear());
+        assertEquals(1986, dto.getYear());
         assertEquals("THRASH_METAL", dto.getGenre());
         assertEquals(List.of("HEAVY_METAL", "HARD_ROCK"), dto.getAdditionalGenres());
         assertEquals(5, dto.getRating());
@@ -163,7 +163,7 @@ class DTOTest {
         dto.setArtist("Artist");
         dto.setAlbum("Album");
         dto.setTitle("Title");
-        dto.setYear("2000");
+        dto.setYear(2000);
         dto.setGenre("ROCK");
         dto.setAdditionalGenres(List.of("METAL"));
         dto.setRating(3);
@@ -174,7 +174,7 @@ class DTOTest {
         assertEquals("Artist", dto.getArtist());
         assertEquals("Album", dto.getAlbum());
         assertEquals("Title", dto.getTitle());
-        assertEquals("2000", dto.getYear());
+        assertEquals(2000, dto.getYear());
         assertEquals("ROCK", dto.getGenre());
         assertEquals(List.of("METAL"), dto.getAdditionalGenres());
         assertEquals(3, dto.getRating());

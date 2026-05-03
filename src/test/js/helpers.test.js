@@ -140,6 +140,15 @@ describe('decadeFromYear()', () => {
     it('handles year with extra text', () => {
         expect(decadeFromYear('1985-01-15')).toBe('1980s');
     });
+
+    it('accepts numeric year (post int-year migration)', () => {
+        expect(decadeFromYear(1987)).toBe('1980s');
+        expect(decadeFromYear(2024)).toBe('2020s');
+    });
+
+    it('returns em dash for tiny numeric years', () => {
+        expect(decadeFromYear(99)).toBe('—');
+    });
 });
 
 // ── crossfadeVolumes() ──────────────────────────────────────

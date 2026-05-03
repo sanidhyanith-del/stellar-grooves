@@ -728,7 +728,7 @@ public class LibraryController {
             sb.append(escapeCsv(f.getTitle())).append(",");
             sb.append(escapeCsv(f.getArtist())).append(",");
             sb.append(escapeCsv(f.getAlbum())).append(",");
-            sb.append(escapeCsv(f.getYear())).append(",");
+            sb.append(f.getYear() != null ? f.getYear().toString() : "").append(",");
             sb.append(f.getGenre() != null ? f.getGenre().name() : "").append(",");
             sb.append(f.getRating()).append(",");
             sb.append(escapeCsv(f.getFileName())).append("\n");

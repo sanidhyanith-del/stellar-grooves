@@ -79,11 +79,11 @@ class SmartPlaylistQueryTranslatorTest {
     }
 
     @Test
-    void yearRangeSerializesAsString() {
+    void yearRangeSerializesAsInt() {
         Document d = doc(leaf(new QueryPredicate.IntRange(QueryPredicate.NumField.YEAR, 1984, 1990)), "u");
         Document clause = (Document) d.get("year");
-        assertEquals("1984", clause.get("$gte"));
-        assertEquals("1990", clause.get("$lte"));
+        assertEquals(1984, clause.get("$gte"));
+        assertEquals(1990, clause.get("$lte"));
     }
 
     @Test
@@ -265,9 +265,9 @@ class SmartPlaylistQueryTranslatorTest {
     }
 
     @Test
-    void intEqOnYearSerializesAsString() {
+    void intEqOnYearSerializesAsInt() {
         Document d = doc(leaf(new QueryPredicate.IntEq(QueryPredicate.NumField.YEAR, 1986)), "u");
-        assertEquals("1986", d.get("year"));
+        assertEquals(1986, d.get("year"));
     }
 
     @Test
@@ -303,12 +303,11 @@ class SmartPlaylistQueryTranslatorTest {
     }
 
     @Test
-    void intCompareOnYearSerializesAsString() {
-        // Year is stored as String in the model; the compare path must coerce.
+    void intCompareOnYearSerializesAsInt() {
         Document d = doc(leaf(new QueryPredicate.IntCompare(
                 QueryPredicate.NumField.YEAR, QueryPredicate.CompareOp.GT, 1979)), "u");
         Document clause = (Document) d.get("year");
-        assertEquals("1979", clause.get("$gt"));
+        assertEquals(1979, clause.get("$gt"));
     }
 
     // ---------- Base scope is preserved through wrapped (non-flat) path ----------

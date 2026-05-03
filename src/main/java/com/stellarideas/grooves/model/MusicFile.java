@@ -26,7 +26,8 @@ import java.time.Instant;
     @CompoundIndex(name = "user_deleted", def = "{'userId': 1, 'deleted': 1}"),
     @CompoundIndex(name = "user_last_played", def = "{'userId': 1, 'lastPlayedAt': -1}"),
     @CompoundIndex(name = "user_play_count", def = "{'userId': 1, 'playCount': -1}"),
-    @CompoundIndex(name = "user_custom_tags", def = "{'userId': 1, 'customTags': 1}")
+    @CompoundIndex(name = "user_custom_tags", def = "{'userId': 1, 'customTags': 1}"),
+    @CompoundIndex(name = "user_year", def = "{'userId': 1, 'year': 1}")
 })
 public class MusicFile {
     @Id
@@ -42,8 +43,7 @@ public class MusicFile {
     private String album;
     @Size(max = 200)
     private String title;
-    @Size(max = 10)
-    private String year;
+    private Integer year;
 
     @Indexed
     private Genre genre;
@@ -78,7 +78,7 @@ public class MusicFile {
     public MusicFile() {}
 
     public MusicFile(String id, String filePath, String fileName, String artist, String album,
-                     String title, String year, Genre genre, java.util.List<Genre> additionalGenres,
+                     String title, Integer year, Genre genre, java.util.List<Genre> additionalGenres,
                      String userId, String fileHash, int rating, boolean hasCoverArt,
                      boolean deleted, Instant deletedAt, int playCount, Instant lastPlayedAt,
                      java.util.List<String> customTags,
@@ -124,8 +124,8 @@ public class MusicFile {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
-    public String getYear() { return year; }
-    public void setYear(String year) { this.year = year; }
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 
     public Genre getGenre() { return genre; }
     public void setGenre(Genre genre) { this.genre = genre; }
@@ -191,7 +191,7 @@ public class MusicFile {
         private String artist;
         private String album;
         private String title;
-        private String year;
+        private Integer year;
         private Genre genre;
         private java.util.List<Genre> additionalGenres;
         private String userId;
@@ -214,7 +214,7 @@ public class MusicFile {
         public MusicFileBuilder artist(String artist) { this.artist = artist; return this; }
         public MusicFileBuilder album(String album) { this.album = album; return this; }
         public MusicFileBuilder title(String title) { this.title = title; return this; }
-        public MusicFileBuilder year(String year) { this.year = year; return this; }
+        public MusicFileBuilder year(Integer year) { this.year = year; return this; }
         public MusicFileBuilder genre(Genre genre) { this.genre = genre; return this; }
         public MusicFileBuilder additionalGenres(java.util.List<Genre> additionalGenres) { this.additionalGenres = additionalGenres; return this; }
         public MusicFileBuilder userId(String userId) { this.userId = userId; return this; }
