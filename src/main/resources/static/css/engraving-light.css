@@ -14,7 +14,7 @@
     --bone:           #e8e0d2;
     --bone-light:     #efe9dc;
     --bone-bright:    #f5f0e3;
-    --bone-edge:      #d8cfbd;   /* darker margin / vignette */
+    --steel-edge:      #8090a0;   /* British Steel — cool polished blue-gray; breaks up bone surfaces */
 
     /* Inks & metal */
     --iron-black:     #191612;
@@ -121,7 +121,7 @@
         --bone:           #e8e0d2;
         --bone-light:     #efe9dc;
         --bone-bright:    #f5f0e3;
-        --bone-edge:      #d8cfbd;
+        --steel-edge:      #8090a0;
         --iron-black:     #191612;
         --iron-soft:      #2d2620;
         --tarnished:      #86807a;
@@ -195,14 +195,14 @@
     background-image:
         var(--foxing),
         var(--xhatch-fine),
-        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 50%, var(--bone-edge) 100%);
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 50%, var(--steel-edge) 100%);
 }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) body {
     background-color: var(--bone);
     background-image:
         var(--foxing),
         var(--xhatch-fine),
-        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 50%, var(--bone-edge) 100%);
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 50%, var(--steel-edge) 100%);
 } }
 
 [data-theme="light"] body::before,
@@ -433,7 +433,7 @@
 }
 [data-theme="light"] .btn-primary:disabled,
 :root:not([data-theme="dark"]) .btn-primary:disabled {
-    background: var(--bone-edge);
+    background: var(--steel-edge);
     background-image: var(--xhatch-fine);
     color: var(--text-faint) !important;
     text-shadow: none !important;
@@ -513,7 +513,7 @@
 :root:not([data-theme="dark"]) .wurlitzer {
     background:
         var(--xhatch-med),
-        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 60%, var(--bone-edge) 100%);
+        linear-gradient(180deg, var(--bone-light) 0%, var(--bone) 60%, var(--steel-edge) 100%);
     border: 2px solid var(--iron-black);
     border-radius: 0;
     box-shadow:
@@ -539,7 +539,7 @@
         radial-gradient(circle at 50% 35%,
             var(--bone-bright) 0%,
             var(--bone-light) 50%,
-            var(--bone-edge) 100%);
+            var(--steel-edge) 100%);
     border: 1.5px solid var(--iron-black);
 }
 
@@ -597,9 +597,9 @@
         repeating-linear-gradient(
             90deg,
             var(--bone-bright) 0 4px,
-            var(--bone-edge) 4px 5px,
+            var(--steel-edge) 4px 5px,
             var(--iron-black) 5px 6px,
-            var(--bone-edge) 6px 7px,
+            var(--steel-edge) 6px 7px,
             var(--bone-bright) 7px 11px);
 }
 [data-theme="light"] .wurl-grille-glow,
@@ -708,7 +708,7 @@
 :root:not([data-theme="dark"]) .wurl-pilaster {
     background:
         var(--hatch-single),
-        linear-gradient(90deg, var(--bone-edge) 0%, var(--bone-bright) 50%, var(--bone-edge) 100%);
+        linear-gradient(90deg, var(--steel-edge) 0%, var(--bone-bright) 50%, var(--steel-edge) 100%);
     border-left: 1px solid var(--iron-black);
     border-right: 1px solid var(--iron-black);
 }
@@ -742,7 +742,7 @@
 :root:not([data-theme="dark"]) .wurl-side-panel {
     background:
         var(--xhatch-fine),
-        linear-gradient(180deg, var(--bone-light) 0%, var(--bone-edge) 100%);
+        linear-gradient(180deg, var(--bone-light) 0%, var(--steel-edge) 100%);
     border: 1.5px solid var(--iron-black);
     border-radius: 0;
     box-shadow:
@@ -882,7 +882,7 @@
 :root:not([data-theme="dark"]) .speaker-driver {
     background:
         radial-gradient(circle at 50% 50%,
-            var(--bone-edge) 0%,
+            var(--steel-edge) 0%,
             var(--iron-soft) 70%,
             var(--iron-black) 100%);
     box-shadow:
@@ -896,14 +896,14 @@
         repeating-radial-gradient(
             circle at center,
             var(--iron-black) 0 1px,
-            var(--bone-edge) 1px 2px);
+            var(--steel-edge) 1px 2px);
 }
 [data-theme="light"] .speaker-dust-cap,
 :root:not([data-theme="dark"]) .speaker-dust-cap {
     background:
         radial-gradient(circle at 40% 35%,
             var(--bone-bright) 0%,
-            var(--bone-edge) 60%,
+            var(--steel-edge) 60%,
             var(--iron-black) 100%);
     box-shadow: inset 0 0 0 1px var(--iron-black);
 }
@@ -1056,6 +1056,28 @@
 :root:not([data-theme="dark"]) .sg-hero-tagline {
     color: var(--iron-soft);
     font-style: italic;
+}
+
+/* The italicised hero word ("Listening" / "Control") — keep the
+   light-mode magenta but give it a glossy candy finish: pink catch
+   light up top, magenta mid, deep wine at the base, plus a soft
+   magenta halo. Sharp 1px chisel above/below sells the gloss
+   without the wide-blur bloom that would mush at smaller sizes. */
+[data-theme="light"] .sg-hero-title em,
+:root:not([data-theme="dark"]) .sg-hero-title em {
+    color: var(--mtv-magenta);
+    -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(180deg,
+        #ffb0d2 0%,
+        #ff5da3 22%,
+        var(--mtv-magenta) 58%,
+        #6e0c3f 100%);
+    -webkit-background-clip: text;
+            background-clip: text;
+    text-shadow:
+        0 0 12px var(--mtv-magenta-glow),
+        0 1px 0 rgba(25, 22, 18, 0.3),
+        0 -1px 0 rgba(255, 255, 255, 0.45);
 }
 
 /* ── Stat blocks — engraved bone tiles with brass numerals ── */

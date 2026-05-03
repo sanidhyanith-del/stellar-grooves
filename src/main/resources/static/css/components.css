@@ -128,6 +128,14 @@
 .nav-link.active { color: var(--honey) !important; text-shadow: 0 0 10px rgba(255, 209, 102, 0.4); }
 .nav-link:hover::after,
 .nav-link.active::after { right: 0; }
+/* Logout uses a POST form with a button styled as a nav-link;
+   strip the browser's default button chrome but leave font/padding
+   to the .nav-link rules above. */
+button.nav-link {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
 
 /* Theme toggle — chrome nub switch */
 .theme-toggle {

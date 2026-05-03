@@ -26,7 +26,10 @@
                 <button class="theme-toggle" id="themeToggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9788;</button>
                 <a class="nav-link d-inline" th:href="@{/help}">Help</a>
                 <a class="nav-link d-inline" th:href="@{/admin}" sec:authorize="hasRole('ADMIN')">Admin</a>
-                <a class="nav-link d-inline" href="/logout">Logout</a>
+                <form th:action="@{/logout}" method="post" class="m-0">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                    <button type="submit" class="nav-link">Logout</button>
+                </form>
             </div>
         </div>
     </nav>
