@@ -36,6 +36,14 @@ public class ViewController {
         return "help";
     }
 
+    @GetMapping("/shared/smart-playlists/{token}")
+    public String sharedSmartPlaylist(@org.springframework.web.bind.annotation.PathVariable String token,
+                                      Model model) {
+        model.addAttribute("appVersion", appVersion);
+        model.addAttribute("shareToken", token);
+        return "shared-smart-playlist";
+    }
+
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
     public String admin(Model model) {

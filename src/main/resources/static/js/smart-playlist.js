@@ -51,19 +51,30 @@ function renderSidebar() {
         const li = document.createElement('li');
         const isActive = nav.view === 'smartPlaylist' && nav.smartPlaylistId === sp.id;
         li.className = 'playlist-item' + (isActive ? ' active' : '');
-        const tip = sp.updatedAt
-            ? `${sp.name}\nUpdated ${new Date(sp.updatedAt).toISOString().slice(0, 10)}`
+        const subBadge = sp.subscribed
+            ? `<span class="playlist-item-badge" title="Subscribed to ${SG.escapeHtml(sp.curatorUsername || 'a curator')}'s query" aria-label="Subscribed">\u2693</span>`
+            : '';
+        const tipBase = sp.subscribed
+            ? `${sp.name}\nSubscribed to ${sp.curatorUsername || 'a curator'}`
             : sp.name;
+        const tip = sp.updatedAt
+            ? `${tipBase}\nUpdated ${new Date(sp.updatedAt).toISOString().slice(0, 10)}`
+            : tipBase;
+        const delLabel = sp.subscribed ? 'Unsubscribe' : 'Delete smart playlist';
         li.innerHTML =
+            subBadge +
             `<span class="playlist-item-name" title="${SG.escapeHtml(tip)}">${SG.escapeHtml(sp.name)}</span>` +
-            `<button class="playlist-item-del" data-id="${sp.id}" title="Delete smart playlist" ` +
-            `aria-label="Delete smart playlist ${SG.escapeHtml(sp.name)}">\u2715</button>`;
+            `<button class="playlist-item-del" data-id="${sp.id}" title="${delLabel}" ` +
+            `aria-label="${delLabel} ${SG.escapeHtml(sp.name)}">\u2715</button>`;
         li.querySelector('.playlist-item-name').addEventListener('click', () => {
             SG.navigate({ view: 'smartPlaylist', smartPlaylistId: sp.id });
         });
         li.querySelector('.playlist-item-del').addEventListener('click', async function(e) {
             e.stopPropagation();
-            if (!confirm(`Delete smart playlist "${sp.name}"?`)) return;
+            const prompt = sp.subscribed
+                ? `Unsubscribe from "${sp.name}"?`
+                : `Delete smart playlist "${sp.name}"?`;
+            if (!confirm(prompt)) return;
             await SG.guardClick(this, () => deleteSmartPlaylist(sp.id));
         });
         ul.appendChild(li);
@@ -75,12 +86,18 @@ function renderView() {
     const nav = window.nav || {};
     const nameEl = document.getElementById('spName');
     const queryEl = document.getElementById('spQuery');
+    const descEl = document.getElementById('spDescription');
     const matchCountEl = document.getElementById('spMatchCount');
     const resultsEl = document.getElementById('spResultsBody');
     const statusEl = document.getElementById('spStatus');
     const deleteBtn = document.getElementById('spDeleteBtn');
     const duplicateBtn = document.getElementById('spDuplicateBtn');
     const materializeBtn = document.getElementById('spMaterializeBtn');
+    const saveBtn = document.getElementById('spSaveBtn');
+    const shareBtn = document.getElementById('spShareBtn');
+    const forkBtn = document.getElementById('spForkBtn');
+    const sharePanel = document.getElementById('spSharePanel');
+    const subBanner = document.getElementById('spSubscriptionBanner');
 
     resultsEl.innerHTML = '';
     matchCountEl.textContent = '';
@@ -89,6 +106,11 @@ function renderView() {
     setQueryInvalid(false);
     if (countAbort) countAbort.abort();
     if (countTimer) clearTimeout(countTimer);
+
+    if (sharePanel) sharePanel.classList.add('d-none');
+    if (subBanner) subBanner.classList.add('d-none');
+    if (shareBtn) shareBtn.classList.add('d-none');
+    if (forkBtn) forkBtn.classList.add('d-none');
 
     const playBtn = document.getElementById('spPlayBtn');
     if (playBtn) playBtn.disabled = true;
@@ -99,6 +121,7 @@ function renderView() {
             // Not loaded yet or deleted — fall back to new
             nameEl.value = '';
             queryEl.value = '';
+            if (descEl) descEl.value = '';
             deleteBtn.classList.add('d-none');
             if (duplicateBtn) duplicateBtn.classList.add('d-none');
             materializeBtn.disabled = true;
@@ -106,12 +129,36 @@ function renderView() {
         }
         nameEl.value = existing.name;
         queryEl.value = existing.queryString;
+        if (descEl) descEl.value = existing.description || '';
         deleteBtn.classList.remove('d-none');
         if (duplicateBtn) duplicateBtn.classList.remove('d-none');
         materializeBtn.disabled = false;
+
+        if (existing.subscribed) {
+            // Subscription: query/description are read-only; only Fork edits.
+            if (subBanner) {
+                document.getElementById('spCuratorName').textContent = existing.curatorUsername || 'curator';
+                subBanner.classList.remove('d-none');
+            }
+            queryEl.readOnly = true;
+            if (descEl) descEl.readOnly = true;
+            saveBtn.classList.add('d-none');
+            if (forkBtn) forkBtn.classList.remove('d-none');
+        } else {
+            queryEl.readOnly = false;
+            if (descEl) descEl.readOnly = false;
+            saveBtn.classList.remove('d-none');
+            // Owner-only: Share button. Show panel pre-populated if already shared.
+            if (shareBtn) shareBtn.classList.remove('d-none');
+            if (existing.shareToken) showSharePanel(existing.shareToken);
+        }
     } else if (pendingClone) {
         nameEl.value = pendingClone.name;
         queryEl.value = pendingClone.query;
+        if (descEl) descEl.value = pendingClone.description || '';
+        queryEl.readOnly = false;
+        if (descEl) descEl.readOnly = false;
+        saveBtn.classList.remove('d-none');
         deleteBtn.classList.add('d-none');
         if (duplicateBtn) duplicateBtn.classList.add('d-none');
         materializeBtn.disabled = true;
@@ -119,6 +166,10 @@ function renderView() {
     } else {
         nameEl.value = '';
         queryEl.value = 'rating:>=4';
+        if (descEl) descEl.value = '';
+        queryEl.readOnly = false;
+        if (descEl) descEl.readOnly = false;
+        saveBtn.classList.remove('d-none');
         deleteBtn.classList.add('d-none');
         if (duplicateBtn) duplicateBtn.classList.add('d-none');
         materializeBtn.disabled = true;
@@ -126,6 +177,14 @@ function renderView() {
     // Kick an initial count so users see the match total on load
     // (programmatic value assignment doesn't fire the 'input' event).
     scheduleLiveCount();
+}
+
+function showSharePanel(token) {
+    const panel = document.getElementById('spSharePanel');
+    const url = document.getElementById('spShareUrl');
+    if (!panel || !url) return;
+    url.value = window.location.origin + '/shared/smart-playlists/' + token;
+    panel.classList.remove('d-none');
 }
 
 async function preview() {
@@ -247,12 +306,14 @@ async function save() {
     const nav = window.nav || {};
     const name = document.getElementById('spName').value.trim();
     const query = document.getElementById('spQuery').value.trim();
+    const descEl = document.getElementById('spDescription');
+    const description = descEl ? descEl.value.trim() : '';
     const statusEl = document.getElementById('spStatus');
 
     if (!name) { statusEl.textContent = 'Name is required'; statusEl.className = 'sp-status status-error'; return; }
     if (!query) { statusEl.textContent = 'Query is required'; statusEl.className = 'sp-status status-error'; return; }
 
-    const payload = JSON.stringify({ name, queryString: query });
+    const payload = JSON.stringify({ name, queryString: query, description: description || null });
     const isUpdate = !!nav.smartPlaylistId;
     const url = isUpdate ? `/api/v1/smart-playlists/${nav.smartPlaylistId}` : '/api/v1/smart-playlists';
     const method = isUpdate ? 'PUT' : 'POST';
@@ -422,6 +483,79 @@ function toggleSyntaxHelp() {
     panel.classList.toggle('d-none');
 }
 
+// ── Share / fork ───────────────────────────────────────
+async function share() {
+    const nav = window.nav || {};
+    if (!nav.smartPlaylistId) return;
+    try {
+        const r = await fetch(`/api/v1/smart-playlists/${nav.smartPlaylistId}/share`, {
+            method: 'POST', headers: SG.csrfHeaders()
+        });
+        if (!r.ok) {
+            SG.showToast(await SG.errorMsg(r, 'Failed to create share link'));
+            return;
+        }
+        const data = await r.json();
+        showSharePanel(data.shareToken);
+        // Refresh local cache so subsequent renders carry the token
+        await loadSmartPlaylists();
+    } catch (e) {
+        SG.showToast('Failed to create share link');
+    }
+}
+
+async function revokeShare() {
+    const nav = window.nav || {};
+    if (!nav.smartPlaylistId) return;
+    if (!confirm('Revoke the share link? Existing subscribers will keep their subscriptions, but new ones will need a new link.')) return;
+    try {
+        const r = await fetch(`/api/v1/smart-playlists/${nav.smartPlaylistId}/share`, {
+            method: 'DELETE', headers: SG.csrfHeaders()
+        });
+        if (!r.ok) {
+            SG.showToast(await SG.errorMsg(r, 'Failed to revoke share link'));
+            return;
+        }
+        document.getElementById('spSharePanel').classList.add('d-none');
+        await loadSmartPlaylists();
+    } catch (e) {
+        SG.showToast('Failed to revoke share link');
+    }
+}
+
+async function copyShareUrl() {
+    const url = document.getElementById('spShareUrl');
+    if (!url) return;
+    try {
+        await navigator.clipboard.writeText(url.value);
+        SG.showToast('Link copied', 'info', 1500);
+    } catch (_) {
+        // Fallback for older browsers
+        url.select();
+        document.execCommand('copy');
+        SG.showToast('Link copied', 'info', 1500);
+    }
+}
+
+async function fork() {
+    const nav = window.nav || {};
+    if (!nav.smartPlaylistId) return;
+    try {
+        const r = await fetch(`/api/v1/smart-playlists/${nav.smartPlaylistId}/fork`, {
+            method: 'POST', headers: SG.csrfHeaders()
+        });
+        if (!r.ok) {
+            SG.showToast(await SG.errorMsg(r, 'Failed to fork subscription'));
+            return;
+        }
+        await loadSmartPlaylists();
+        renderView();
+        SG.showToast('Forked — query is now yours to edit', 'info', 2500);
+    } catch (e) {
+        SG.showToast('Failed to fork subscription');
+    }
+}
+
 // ── Wire events once DOM is ready ───────────────────────
 function init() {
     const newBtn = document.getElementById('showNewSmartPlaylistBtn');
@@ -447,6 +581,18 @@ function init() {
     if (playBtn) playBtn.addEventListener('click', () => SG.guardClick(playBtn, playAll));
     const helpBtn = document.getElementById('spSyntaxHelpBtn');
     if (helpBtn) helpBtn.addEventListener('click', toggleSyntaxHelp);
+
+    const shareBtn = document.getElementById('spShareBtn');
+    if (shareBtn) shareBtn.addEventListener('click', () => SG.guardClick(shareBtn, share));
+
+    const shareCopyBtn = document.getElementById('spShareCopyBtn');
+    if (shareCopyBtn) shareCopyBtn.addEventListener('click', copyShareUrl);
+
+    const shareRevokeBtn = document.getElementById('spShareRevokeBtn');
+    if (shareRevokeBtn) shareRevokeBtn.addEventListener('click', () => SG.guardClick(shareRevokeBtn, revokeShare));
+
+    const forkBtn = document.getElementById('spForkBtn');
+    if (forkBtn) forkBtn.addEventListener('click', () => SG.guardClick(forkBtn, fork));
 
     const query = document.getElementById('spQuery');
     if (query) {

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#e8341a">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
+    <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-XSRF-TOKEN'}">
+    <meta name="_shareToken" th:content="${shareToken}">
+    <title>Shared Smart Playlist — Stellar Grooves</title>
+    <link rel="icon" th:href="@{/images/logo.png}" type="image/png">
+    <link rel="stylesheet" th:href="@{/vendor/bootstrap/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/main.css}">
+</head>
+<body>
+<div class="sg-auth">
+    <section class="sg-auth-stage">
+        <div class="sg-auth-brand">
+            <img th:src="@{/images/stellar-grooves-logo-nav.svg}" alt="Stellar Grooves">
+            <span>Stellar Grooves</span>
+        </div>
+        <div class="sg-auth-headline">
+            <div class="sg-auth-kicker">A Curator's Query</div>
+            <h1 class="sg-auth-title">Taste, <em>shared</em>.</h1>
+            <p class="sg-auth-lede">Smart playlists publish a query, not a recording. Subscribe, and it runs against your library — you discover what you have that fits another curator's taste.</p>
+        </div>
+        <div class="sg-auth-footer">
+            <span>Self-Hosted</span>
+            <span>Library-Aware</span>
+            <span>Subscribed, Not Streamed</span>
+        </div>
+    </section>
+
+    <section class="sg-auth-panel">
+        <div class="sg-auth-card" id="sharedView">
+            <div id="sharedLoading" class="text-center py-4">Loading…</div>
+
+            <div id="sharedError" class="alert alert-danger d-none" role="alert"></div>
+
+            <div id="sharedContent" class="d-none">
+                <div class="sg-auth-card-sub">Curated by <strong id="sharedCurator">—</strong></div>
+                <h2 class="sg-auth-card-title" id="sharedName">Shared Smart Playlist</h2>
+
+                <p id="sharedDescription" class="mb-3" style="color:var(--text-secondary);"></p>
+
+                <div class="mb-3">
+                    <div class="form-label">Query</div>
+                    <pre id="sharedQuery" class="p-2"
+                         style="background:rgba(0,0,0,0.35);border-radius:4px;white-space:pre-wrap;word-break:break-word;"></pre>
+                </div>
+
+                <div class="mb-3 small" style="color:var(--text-muted);">
+                    Matches <strong id="sharedMatchCount">0</strong> tracks in <span id="sharedCuratorEcho">—</span>'s library.
+                </div>
+
+                <div id="sharedActions" class="d-grid gap-2"></div>
+
+                <div class="sg-auth-card-foot sg-auth-card-foot-small mt-3">
+                    <a href="/">Back to Stellar Grooves</a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+<script th:src="@{/js/shared-smart-playlist.js(v=${appVersion})}"></script>
+</body>
+</html>

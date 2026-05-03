@@ -6,6 +6,7 @@ import com.stellarideas.grooves.model.Playlist;
 import com.stellarideas.grooves.model.SmartPlaylist;
 import com.stellarideas.grooves.repository.PlaylistRepository;
 import com.stellarideas.grooves.repository.SmartPlaylistRepository;
+import com.stellarideas.grooves.repository.UserRepository;
 import com.stellarideas.grooves.smartplaylist.QueryParseException;
 import com.stellarideas.grooves.smartplaylist.SmartPlaylistQueryParser;
 import com.stellarideas.grooves.smartplaylist.SmartPlaylistQueryTranslator;
@@ -30,16 +31,19 @@ class SmartPlaylistServiceTest {
     private SmartPlaylistService service;
     private SmartPlaylistRepository repository;
     private PlaylistRepository playlistRepository;
+    private UserRepository userRepository;
     private MongoTemplate mongoTemplate;
 
     @BeforeEach
     void setUp() {
         repository = mock(SmartPlaylistRepository.class);
         playlistRepository = mock(PlaylistRepository.class);
+        userRepository = mock(UserRepository.class);
         mongoTemplate = mock(MongoTemplate.class);
         service = new SmartPlaylistService(
                 repository,
                 playlistRepository,
+                userRepository,
                 new SmartPlaylistQueryParser(),
                 new SmartPlaylistQueryTranslator(),
                 mongoTemplate);
@@ -264,5 +268,215 @@ class SmartPlaylistServiceTest {
         assertEquals(10, result.trackCount());
         assertFalse(result.truncated(),
                 "a user-requested limit fully satisfied is not a truncation");
+    }
+
+    // ─── Sharing / subscriptions ────────────────────────────────────────
+
+    @Test
+    void shareGeneratesTokenAndPersists() {
+        SmartPlaylist sp = playlist("curator-1", "genre:thrash_metal");
+        when(repository.save(any(SmartPlaylist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SmartPlaylist shared = service.share(sp);
+
+        assertNotNull(shared.getShareToken());
+        assertFalse(shared.getShareToken().isBlank());
+        verify(repository).save(sp);
+    }
+
+    @Test
+    void shareIsIdempotentWhenTokenAlreadyExists() {
+        SmartPlaylist sp = playlist("curator-1", "genre:thrash_metal");
+        sp.setShareToken("existing-token");
+
+        SmartPlaylist shared = service.share(sp);
+
+        assertEquals("existing-token", shared.getShareToken());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void shareRejectedOnSubscription() {
+        SmartPlaylist sub = playlist("user-2", "");
+        sub.setSubscribedFromId("source-1");
+        assertThrows(IllegalStateException.class, () -> service.share(sub));
+    }
+
+    @Test
+    void revokeShareClearsToken() {
+        SmartPlaylist sp = playlist("curator-1", "genre:hard_rock");
+        sp.setShareToken("tok-abc");
+        when(repository.save(any(SmartPlaylist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SmartPlaylist revoked = service.revokeShare(sp);
+
+        assertNull(revoked.getShareToken());
+        assertNull(revoked.getShareTokenExpiresAt());
+    }
+
+    @Test
+    void subscribeCreatesNewRowLinkedToSource() {
+        SmartPlaylist source = playlist("curator-1", "genre:thrash_metal");
+        when(repository.findBySubscribedFromId("sp-1")).thenReturn(List.of());
+        when(repository.existsByUserIdAndName(eq("subscriber-1"), any())).thenReturn(false);
+        when(repository.save(any(SmartPlaylist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SmartPlaylist sub = service.subscribe("subscriber-1", source);
+
+        assertEquals("subscriber-1", sub.getUserId());
+        assertEquals("sp-1", sub.getSubscribedFromId());
+        assertTrue(sub.isSubscription());
+        assertEquals("Rediscover", sub.getName());
+    }
+
+    @Test
+    void subscribeIsIdempotentForSameUser() {
+        SmartPlaylist source = playlist("curator-1", "genre:thrash_metal");
+        SmartPlaylist existingSub = new SmartPlaylist();
+        existingSub.setId("sub-1");
+        existingSub.setUserId("subscriber-1");
+        existingSub.setSubscribedFromId("sp-1");
+        when(repository.findBySubscribedFromId("sp-1")).thenReturn(List.of(existingSub));
+
+        SmartPlaylist result = service.subscribe("subscriber-1", source);
+
+        assertEquals("sub-1", result.getId());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void subscribeRejectsSelfSubscription() {
+        SmartPlaylist source = playlist("curator-1", "genre:thrash_metal");
+        assertThrows(IllegalArgumentException.class, () -> service.subscribe("curator-1", source));
+    }
+
+    @Test
+    void subscribeAvoidsNameCollision() {
+        SmartPlaylist source = playlist("curator-1", "genre:thrash_metal"); // name "Rediscover"
+        when(repository.findBySubscribedFromId("sp-1")).thenReturn(List.of());
+        when(repository.existsByUserIdAndName("subscriber-1", "Rediscover")).thenReturn(true);
+        when(repository.existsByUserIdAndName("subscriber-1", "Rediscover (2)")).thenReturn(false);
+        when(repository.save(any(SmartPlaylist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SmartPlaylist sub = service.subscribe("subscriber-1", source);
+
+        assertEquals("Rediscover (2)", sub.getName());
+    }
+
+    @Test
+    void resolveQueryStringReadsFromSourceForSubscription() {
+        SmartPlaylist source = playlist("curator-1", "genre:hard_rock rating:>=4");
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setId("sub-1");
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("sp-1");
+        sub.setQueryString("STALE-CACHE-VALUE"); // should be ignored
+        when(repository.findById("sp-1")).thenReturn(java.util.Optional.of(source));
+
+        assertEquals("genre:hard_rock rating:>=4", service.resolveQueryString(sub));
+    }
+
+    @Test
+    void resolveQueryStringFallsBackToOwnerQueryWhenNotSubscription() {
+        SmartPlaylist owner = playlist("user-1", "genre:thrash_metal");
+        assertEquals("genre:thrash_metal", service.resolveQueryString(owner));
+    }
+
+    @Test
+    void resolveQueryStringThrowsWhenSourceDeleted() {
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("source-deleted");
+        when(repository.findById("source-deleted")).thenReturn(java.util.Optional.empty());
+
+        assertThrows(IllegalStateException.class, () -> service.resolveQueryString(sub));
+    }
+
+    @Test
+    void countOnSubscriptionReadsLiveQueryFromSource() {
+        SmartPlaylist source = playlist("curator-1", "genre:thrash_metal");
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setId("sub-1");
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("sp-1");
+        when(repository.findById("sp-1")).thenReturn(java.util.Optional.of(source));
+        when(mongoTemplate.count(any(Query.class), eq(MusicFile.class))).thenReturn(42L);
+
+        long count = service.count(sub);
+
+        assertEquals(42L, count);
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(mongoTemplate).count(captor.capture(), eq(MusicFile.class));
+        // Subscriber's userId is what's used for ownership scoping — query runs against subscriber's library
+        assertEquals("subscriber-1", captor.getValue().getQueryObject().get("userId"));
+    }
+
+    @Test
+    void updateRejectsSubscriptionEdits() {
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("source-1");
+        sub.setName("My Sub");
+        sub.setQueryString("");
+        assertThrows(IllegalStateException.class,
+                () -> service.update(sub, "Renamed", "rating:>=5", null));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void renameSubscriptionUpdatesName() {
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setId("sub-1");
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("source-1");
+        sub.setName("Original");
+        when(repository.existsByUserIdAndName("subscriber-1", "My Local Name")).thenReturn(false);
+        when(repository.save(any(SmartPlaylist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SmartPlaylist saved = service.renameSubscription(sub, "My Local Name");
+
+        assertEquals("My Local Name", saved.getName());
+    }
+
+    @Test
+    void renameSubscriptionRejectedOnOwnedRow() {
+        SmartPlaylist owner = playlist("user-1", "genre:thrash_metal");
+        assertThrows(IllegalStateException.class,
+                () -> service.renameSubscription(owner, "Rename"));
+    }
+
+    @Test
+    void forkCopiesSourceQueryAndClearsLink() {
+        SmartPlaylist source = playlist("curator-1", "genre:thrash_metal sort:random limit:50");
+        source.setDescription("Curator's intent");
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setId("sub-1");
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("sp-1");
+        sub.setQueryString("OLD-SNAPSHOT");
+        when(repository.findById("sp-1")).thenReturn(java.util.Optional.of(source));
+        when(repository.save(any(SmartPlaylist.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        SmartPlaylist forked = service.fork(sub);
+
+        assertNull(forked.getSubscribedFromId());
+        assertEquals("genre:thrash_metal sort:random limit:50", forked.getQueryString());
+        assertEquals("Curator's intent", forked.getDescription());
+        assertFalse(forked.isSubscription());
+    }
+
+    @Test
+    void forkRejectedOnOwnedRow() {
+        SmartPlaylist owner = playlist("user-1", "genre:thrash_metal");
+        assertThrows(IllegalStateException.class, () -> service.fork(owner));
+    }
+
+    @Test
+    void forkRejectedWhenSourceDeleted() {
+        SmartPlaylist sub = new SmartPlaylist();
+        sub.setUserId("subscriber-1");
+        sub.setSubscribedFromId("source-gone");
+        when(repository.findById("source-gone")).thenReturn(java.util.Optional.empty());
+        assertThrows(IllegalStateException.class, () -> service.fork(sub));
     }
 }

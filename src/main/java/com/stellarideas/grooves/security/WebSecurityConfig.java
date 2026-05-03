@@ -157,7 +157,7 @@ public class WebSecurityConfig {
                 auth.requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/api/v1/shared/**").permitAll()
                     .requestMatchers("/ws/**").permitAll()
-                    .requestMatchers("/login", "/signup", "/help", "/css/**", "/js/**", "/vendor/**", "/fonts/**", "/images/**", "/favicon.ico", "/manifest.json", "/sw.js", "/offline.html", "/actuator/health", "/actuator/metrics/**", "/actuator/prometheus").permitAll();
+                    .requestMatchers("/login", "/signup", "/help", "/shared/**", "/css/**", "/js/**", "/vendor/**", "/fonts/**", "/images/**", "/favicon.ico", "/manifest.json", "/sw.js", "/offline.html", "/actuator/health", "/actuator/metrics/**", "/actuator/prometheus").permitAll();
                 if (swaggerEnabled) {
                     auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**").permitAll();
                 } else {

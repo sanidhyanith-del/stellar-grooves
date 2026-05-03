@@ -613,6 +613,10 @@
                     <!-- Smart Playlist view -->
                     <div id="viewSmartPlaylist" class="d-none" role="region" aria-label="Smart playlist editor">
                         <div class="sp-editor p-3">
+                            <div id="spSubscriptionBanner" class="alert alert-info small d-none mb-2" role="status">
+                                Subscribed to <strong id="spCuratorName">curator</strong>'s query — the query updates automatically when they refine it. Fork to make it your own and edit.
+                            </div>
+
                             <div class="row g-2 align-items-end mb-2">
                                 <div class="col-12 col-md-5">
                                     <label for="spName" class="form-label small mb-1">Name</label>
@@ -623,11 +627,29 @@
                                     <button class="btn btn-sm btn-outline-primary" id="spPreviewBtn" type="button">Preview</button>
                                     <button class="btn btn-sm btn-success" id="spPlayBtn" type="button" disabled title="Play the current matches">&#9654; Play</button>
                                     <button class="btn btn-sm btn-primary" id="spSaveBtn" type="button">Save</button>
+                                    <button class="btn btn-sm btn-outline-info d-none" id="spShareBtn" type="button" title="Share this query with another curator">Share</button>
+                                    <button class="btn btn-sm btn-outline-warning d-none" id="spForkBtn" type="button" title="Make an editable copy of this subscription">Fork</button>
                                     <button class="btn btn-sm btn-outline-success" id="spMaterializeBtn" type="button" disabled title="Snapshot matches into a regular playlist">Materialize</button>
                                     <button class="btn btn-sm btn-outline-secondary d-none" id="spDuplicateBtn" type="button" title="Create a copy of this smart playlist">Duplicate</button>
                                     <button class="btn btn-sm btn-outline-danger d-none" id="spDeleteBtn" type="button">Delete</button>
                                 </div>
                             </div>
+
+                            <div id="spSharePanel" class="alert alert-secondary small d-none mb-2" role="region" aria-label="Share link">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span>Share link:</span>
+                                    <input type="text" id="spShareUrl" class="form-control form-control-sm flex-grow-1" readonly style="min-width:14rem;">
+                                    <button class="btn btn-sm btn-outline-primary" id="spShareCopyBtn" type="button">Copy</button>
+                                    <button class="btn btn-sm btn-outline-danger" id="spShareRevokeBtn" type="button">Revoke</button>
+                                </div>
+                                <div class="small mt-1" style="color:var(--text-muted);">Anyone with the link sees the query, your username, and a match count from your library — not the actual tracks.</div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label for="spDescription" class="form-label small mb-1">Description <span class="text-secondary-themed small">(optional, shown to subscribers)</span></label>
+                                <input type="text" id="spDescription" class="form-control form-control-sm" maxlength="500" placeholder="Brief note on what this query is for">
+                            </div>
+
                             <div class="mb-2">
                                 <label for="spQuery" class="form-label small mb-1">Query <span class="text-secondary-themed small">(Ctrl/⌘+Enter to preview)</span></label>
                                 <textarea id="spQuery" class="form-control form-control-sm sp-query" rows="3" spellcheck="false" placeholder="genre:thrash_metal year:1984..1990 rating:>=4 lastPlayed:>6mo"></textarea>

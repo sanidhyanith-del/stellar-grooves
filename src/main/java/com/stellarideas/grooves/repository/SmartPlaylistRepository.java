@@ -11,4 +11,6 @@ public interface SmartPlaylistRepository extends MongoRepository<SmartPlaylist, 
     Optional<SmartPlaylist> findByIdAndUserId(String id, String userId);
     long deleteByUserId(String userId);
     boolean existsByUserIdAndName(String userId, String name);
+    Optional<SmartPlaylist> findByShareToken(String shareToken);
+    List<SmartPlaylist> findBySubscribedFromId(String subscribedFromId);
 }
