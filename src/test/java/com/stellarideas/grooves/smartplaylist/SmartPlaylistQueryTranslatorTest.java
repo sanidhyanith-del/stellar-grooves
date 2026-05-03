@@ -226,4 +226,158 @@ class SmartPlaylistQueryTranslatorTest {
         assertNotNull(innerOr);
         assertEquals(2, innerOr.size());
     }
+
+    // ---------- TextField mapping (ALBUM, TITLE) ----------
+
+    @Test
+    void textContainsMapsAlbumField() {
+        Document d = doc(leaf(new QueryPredicate.TextContains(
+                QueryPredicate.TextField.ALBUM, "Master of Puppets")), "u");
+        assertInstanceOf(java.util.regex.Pattern.class, d.get("album"));
+    }
+
+    @Test
+    void textContainsMapsTitleField() {
+        Document d = doc(leaf(new QueryPredicate.TextContains(
+                QueryPredicate.TextField.TITLE, "One")), "u");
+        assertInstanceOf(java.util.regex.Pattern.class, d.get("title"));
+    }
+
+    @Test
+    void textContainsEscapesRegexMetacharacters() {
+        // Pattern.quote should neutralize all regex metacharacters; we verify a few would-be
+        // metacharacters and confirm the literal value is preserved.
+        String tricky = ".*+?(){}[]^$\\|";
+        Document d = doc(leaf(new QueryPredicate.TextContains(
+                QueryPredicate.TextField.TITLE, tricky)), "u");
+        java.util.regex.Pattern p = (java.util.regex.Pattern) d.get("title");
+        assertEquals(java.util.regex.Pattern.quote(tricky), p.pattern());
+        // Sanity: the compiled pattern matches its literal input
+        assertTrue(p.matcher("prefix " + tricky + " suffix").find());
+    }
+
+    // ---------- IntEq (missing in original suite) ----------
+
+    @Test
+    void intEqOnRatingUsesEquality() {
+        Document d = doc(leaf(new QueryPredicate.IntEq(QueryPredicate.NumField.RATING, 4)), "u");
+        assertEquals(4, d.get("rating"));
+    }
+
+    @Test
+    void intEqOnYearSerializesAsString() {
+        Document d = doc(leaf(new QueryPredicate.IntEq(QueryPredicate.NumField.YEAR, 1986)), "u");
+        assertEquals("1986", d.get("year"));
+    }
+
+    @Test
+    void intEqOnPlayCountUsesIntValue() {
+        Document d = doc(leaf(new QueryPredicate.IntEq(QueryPredicate.NumField.PLAY_COUNT, 10)), "u");
+        assertEquals(10, d.get("playCount"));
+    }
+
+    // ---------- IntCompare (each operator + each numeric field) ----------
+
+    @Test
+    void intCompareGtOnPlayCountUsesGt() {
+        Document d = doc(leaf(new QueryPredicate.IntCompare(
+                QueryPredicate.NumField.PLAY_COUNT, QueryPredicate.CompareOp.GT, 5)), "u");
+        Document clause = (Document) d.get("playCount");
+        assertEquals(5, clause.get("$gt"));
+    }
+
+    @Test
+    void intCompareLtOnRatingUsesLt() {
+        Document d = doc(leaf(new QueryPredicate.IntCompare(
+                QueryPredicate.NumField.RATING, QueryPredicate.CompareOp.LT, 3)), "u");
+        Document clause = (Document) d.get("rating");
+        assertEquals(3, clause.get("$lt"));
+    }
+
+    @Test
+    void intCompareLteOnRatingUsesLte() {
+        Document d = doc(leaf(new QueryPredicate.IntCompare(
+                QueryPredicate.NumField.RATING, QueryPredicate.CompareOp.LTE, 2)), "u");
+        Document clause = (Document) d.get("rating");
+        assertEquals(2, clause.get("$lte"));
+    }
+
+    @Test
+    void intCompareOnYearSerializesAsString() {
+        // Year is stored as String in the model; the compare path must coerce.
+        Document d = doc(leaf(new QueryPredicate.IntCompare(
+                QueryPredicate.NumField.YEAR, QueryPredicate.CompareOp.GT, 1979)), "u");
+        Document clause = (Document) d.get("year");
+        assertEquals("1979", clause.get("$gt"));
+    }
+
+    // ---------- Base scope is preserved through wrapped (non-flat) path ----------
+
+    @Test
+    void orAtRootStillCarriesUserAndDeletedNeFilter() {
+        Document d = doc(or(
+                leaf(new QueryPredicate.GenreEq(Genre.THRASH_METAL)),
+                leaf(new QueryPredicate.GenreEq(Genre.HARD_ROCK))), "u");
+
+        @SuppressWarnings("unchecked")
+        List<Document> topAnd = (List<Document>) d.get("$and");
+        assertNotNull(topAnd);
+        Document base = topAnd.get(0);
+        assertEquals("u", base.get("userId"));
+        Document deleted = (Document) base.get("deleted");
+        assertNotNull(deleted, "soft-delete filter must survive the wrapped path");
+        assertEquals(true, deleted.get("$ne"));
+    }
+
+    // ---------- Deeper nesting ----------
+
+    @Test
+    void orOfTwoAndsTranslatesAsOrOfAnds() {
+        // (genre:THRASH_METAL AND rating:>=4) OR (genre:HARD_ROCK AND tag:live)
+        Document d = doc(or(
+                and(leaf(new QueryPredicate.GenreEq(Genre.THRASH_METAL)),
+                    leaf(new QueryPredicate.IntCompare(QueryPredicate.NumField.RATING,
+                            QueryPredicate.CompareOp.GTE, 4))),
+                and(leaf(new QueryPredicate.GenreEq(Genre.HARD_ROCK)),
+                    leaf(new QueryPredicate.TagEq("live")))), "u");
+
+        @SuppressWarnings("unchecked")
+        List<Document> topAnd = (List<Document>) d.get("$and");
+        assertNotNull(topAnd);
+        assertEquals(2, topAnd.size());
+
+        Document orWrapper = topAnd.get(1);
+        @SuppressWarnings("unchecked")
+        List<Document> orList = (List<Document>) orWrapper.get("$or");
+        assertNotNull(orList);
+        assertEquals(2, orList.size());
+        // Both branches are themselves $and clauses
+        assertNotNull(orList.get(0).get("$and"));
+        assertNotNull(orList.get(1).get("$and"));
+    }
+
+    @Test
+    void doubleNegationProducesNestedNor() {
+        // NOT (NOT tag:skip) — the outer NOT wraps an OR-or-NOT-or-And? Actually NOT(Leaf(...))
+        // is flattenable. NOT(NOT(Leaf)) is not flattenable because the immediate child of the
+        // outer Not is itself a Not, not a Leaf. Verify it goes through the wrapped path.
+        Document d = doc(not(not(leaf(new QueryPredicate.TagEq("skip")))), "u");
+
+        @SuppressWarnings("unchecked")
+        List<Document> topAnd = (List<Document>) d.get("$and");
+        assertNotNull(topAnd, "double negation should hit the wrapped path");
+        assertEquals(2, topAnd.size());
+
+        Document outer = topAnd.get(1);
+        @SuppressWarnings("unchecked")
+        List<Document> outerNor = (List<Document>) outer.get("$nor");
+        assertNotNull(outerNor);
+        assertEquals(1, outerNor.size());
+
+        // Inner NOT translated to its own $nor
+        @SuppressWarnings("unchecked")
+        List<Document> innerNor = (List<Document>) outerNor.get(0).get("$nor");
+        assertNotNull(innerNor);
+        assertEquals("skip", innerNor.get(0).get("customTags"));
+    }
 }
