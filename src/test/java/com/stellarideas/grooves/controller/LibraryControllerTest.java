@@ -602,7 +602,7 @@ class LibraryControllerTest {
     void exportLibraryAsJson() {
         MusicFile file = MusicFile.builder()
                 .id("f1").title("Song").artist("Artist").album("Album")
-                .year("2023").genre(Genre.HARD_ROCK).fileName("song.mp3").build();
+                .year(2023).genre(Genre.HARD_ROCK).fileName("song.mp3").build();
         when(libraryService.getAllFiles("user1")).thenReturn(List.of(file));
 
         ResponseEntity<?> response = controller.exportLibrary(testUser, "json");
@@ -616,7 +616,7 @@ class LibraryControllerTest {
     void exportLibraryAsCsv() {
         MusicFile file = MusicFile.builder()
                 .id("f1").title("Song").artist("Artist").album("Album")
-                .year("2023").genre(Genre.HARD_ROCK).fileName("song.mp3").build();
+                .year(2023).genre(Genre.HARD_ROCK).fileName("song.mp3").build();
         when(libraryService.getAllFiles("user1")).thenReturn(List.of(file));
 
         ResponseEntity<?> response = controller.exportLibrary(testUser, "csv");
@@ -635,7 +635,7 @@ class LibraryControllerTest {
     void exportLibraryCsvEscapesCommas() {
         MusicFile file = MusicFile.builder()
                 .id("f1").title("Hello, World").artist("Artist").album("Album")
-                .year("2023").genre(Genre.OTHER).fileName("song.mp3").build();
+                .year(2023).genre(Genre.OTHER).fileName("song.mp3").build();
         when(libraryService.getAllFiles("user1")).thenReturn(List.of(file));
 
         ResponseEntity<?> response = controller.exportLibrary(testUser, "csv");

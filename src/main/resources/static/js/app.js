@@ -863,7 +863,7 @@ async function renderPlaylistView() {
         if (sortBy !== 'custom') {
             tracks = [...tracks].sort((a, b) => {
                 if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
-                if (sortBy === 'year') return (b.year || '').localeCompare(a.year || '');
+                if (sortBy === 'year') return (b.year || 0) - (a.year || 0);
                 const av = a[sortBy] || '', bv = b[sortBy] || '';
                 return av.localeCompare(bv);
             });

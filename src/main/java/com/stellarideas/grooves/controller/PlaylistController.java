@@ -194,7 +194,7 @@ public class PlaylistController {
             m.put("title", f.getTitle());
             m.put("artist", f.getArtist());
             m.put("album", f.getAlbum());
-            m.put("year", f.getYear());
+            m.put("year", f.getYear() != null ? f.getYear().toString() : null);
             m.put("fileName", f.getFileName());
             return m;
         }).collect(Collectors.toList());

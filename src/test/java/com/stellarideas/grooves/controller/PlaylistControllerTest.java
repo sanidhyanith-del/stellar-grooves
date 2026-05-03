@@ -269,7 +269,7 @@ class PlaylistControllerTest {
         when(playlistService.findByIdAndUserId("pl1", "user1")).thenReturn(Optional.of(playlist));
 
         MusicFile f1 = MusicFile.builder().id("f1").title("Song 1").artist("Artist 1")
-                .album("Album 1").year("2020").fileName("song1.mp3").genre(Genre.CLASSIC_ROCK).build();
+                .album("Album 1").year(2020).fileName("song1.mp3").genre(Genre.CLASSIC_ROCK).build();
         when(playlistService.getOrderedFiles(playlist, "user1")).thenReturn(List.of(f1));
 
         ResponseEntity<?> response = controller.exportPlaylist(testUser, "pl1", "json");

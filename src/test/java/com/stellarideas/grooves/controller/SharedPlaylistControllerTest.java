@@ -39,10 +39,10 @@ class SharedPlaylistControllerTest {
 
         MusicFile track1 = MusicFile.builder()
                 .id("t1").title("Song One").artist("Artist A")
-                .album("Album X").year("2020").genre(Genre.CLASSIC_ROCK).build();
+                .album("Album X").year(2020).genre(Genre.CLASSIC_ROCK).build();
         MusicFile track2 = MusicFile.builder()
                 .id("t2").title("Song Two").artist("Artist B")
-                .album("Album Y").year("2021").genre(Genre.HEAVY_METAL).build();
+                .album("Album Y").year(2021).genre(Genre.HEAVY_METAL).build();
 
         when(playlistService.findByShareToken("valid-token")).thenReturn(Optional.of(playlist));
         when(playlistService.getOrderedFiles(playlist, "user1")).thenReturn(List.of(track1, track2));
@@ -151,7 +151,7 @@ class SharedPlaylistControllerTest {
 
         MusicFile track = MusicFile.builder()
                 .id("t1").title("Unknown Genre").artist("Artist")
-                .album("Album").year("2023").genre(null).build();
+                .album("Album").year(2023).genre(null).build();
 
         when(playlistService.findByShareToken("null-genre-token")).thenReturn(Optional.of(playlist));
         when(playlistService.getOrderedFiles(playlist, "user1")).thenReturn(List.of(track));

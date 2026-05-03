@@ -115,6 +115,7 @@ public class RediscoveryService {
     public List<OneHitWonder> findOneHitWonders(String userId, Integer minCatalog, Integer limitArtists) {
         int min = minCatalog != null && minCatalog > 0 ? minCatalog : defaultMinCatalog;
         int cap = limitArtists != null && limitArtists > 0 ? Math.min(limitArtists, 50) : 20;
+        final int unplayedPerArtist = 10;
 
         // Step 1: aggregate by artist — total tracks and how many have been played.
         AggregationOperation group = context -> new Document("$group",
@@ -136,25 +137,42 @@ public class RediscoveryService {
                 group, matchHits, sort, limitOp);
         AggregationResults<Document> results = mongoTemplate.aggregate(agg, "music_files", Document.class);
 
-        List<OneHitWonder> out = new ArrayList<>();
+        List<String> artistsInOrder = new ArrayList<>();
+        java.util.Map<String, Integer> totalsByArtist = new java.util.LinkedHashMap<>();
         for (Document d : results.getMappedResults()) {
             String artist = d.getString("_id");
             if (artist == null || artist.isBlank()) continue;
-            int total = d.getInteger("total", 0);
+            artistsInOrder.add(artist);
+            totalsByArtist.put(artist, d.getInteger("total", 0));
+        }
+        if (artistsInOrder.isEmpty()) return List.of();
 
-            // Step 2: fetch the unplayed tracks for this artist (cap at 10 for UI density).
-            Criteria c = Criteria.where("userId").is(userId)
-                    .and("deleted").ne(true)
-                    .and("artist").is(artist);
-            Criteria notPlayed = new Criteria().orOperator(
-                    Criteria.where("playCount").exists(false),
-                    Criteria.where("playCount").is(0));
-            Query q = new Query(new Criteria().andOperator(c, notPlayed))
-                    .with(Sort.by(Sort.Order.desc("rating"), Sort.Order.asc("album"), Sort.Order.asc("title")))
-                    .limit(10);
-            List<MusicFileDTO> unplayed = mongoTemplate.find(q, MusicFile.class).stream()
-                    .map(MusicFileDTO::from).collect(Collectors.toList());
-            out.add(new OneHitWonder(artist, total, 1, unplayed));
+        // Step 2: one query for all artists' unplayed tracks; bucket client-side.
+        Criteria notPlayed = new Criteria().orOperator(
+                Criteria.where("playCount").exists(false),
+                Criteria.where("playCount").is(0));
+        Criteria base = Criteria.where("userId").is(userId)
+                .and("deleted").ne(true)
+                .and("artist").in(artistsInOrder);
+        Query q = new Query(new Criteria().andOperator(base, notPlayed))
+                .with(Sort.by(Sort.Order.asc("artist"),
+                        Sort.Order.desc("rating"),
+                        Sort.Order.asc("album"),
+                        Sort.Order.asc("title")));
+        List<MusicFile> unplayedAll = mongoTemplate.find(q, MusicFile.class);
+
+        java.util.Map<String, List<MusicFileDTO>> bucketed = new java.util.HashMap<>();
+        for (MusicFile mf : unplayedAll) {
+            List<MusicFileDTO> bucket = bucketed.computeIfAbsent(mf.getArtist(), k -> new ArrayList<>());
+            if (bucket.size() < unplayedPerArtist) {
+                bucket.add(MusicFileDTO.from(mf));
+            }
+        }
+
+        List<OneHitWonder> out = new ArrayList<>(artistsInOrder.size());
+        for (String artist : artistsInOrder) {
+            out.add(new OneHitWonder(artist, totalsByArtist.get(artist), 1,
+                    bucketed.getOrDefault(artist, List.of())));
         }
         return out;
     }

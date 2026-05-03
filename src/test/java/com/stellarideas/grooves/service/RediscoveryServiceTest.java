@@ -140,10 +140,9 @@ class RediscoveryServiceTest {
         MusicFile m1 = MusicFile.builder().id("m1").artist("Metallica").title("One").build();
         MusicFile m2 = MusicFile.builder().id("m2").artist("Metallica").title("Two").build();
         MusicFile a1 = MusicFile.builder().id("a1").artist("AC/DC").title("Highway").build();
-        // Each artist's follow-up `find` returns its own unplayed tracks.
+        // Single combined find returns all artists' unplayed tracks; service buckets them.
         when(mongoTemplate.find(any(Query.class), eq(MusicFile.class)))
-                .thenReturn(List.of(m1, m2))
-                .thenReturn(List.of(a1));
+                .thenReturn(List.of(m1, m2, a1));
 
         List<RediscoveryService.OneHitWonder> out = service.findOneHitWonders("u1", null, null);
 

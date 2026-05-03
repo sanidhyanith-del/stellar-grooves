@@ -374,7 +374,7 @@ public class LibraryService {
             t.setArtist(f.getArtist());
             t.setAlbum(f.getAlbum());
             t.setTitle(f.getTitle());
-            t.setYear(f.getYear());
+            t.setYear(f.getYear() != null ? String.valueOf(f.getYear()) : null);
             t.setGenre(f.getGenre() != null ? f.getGenre().name() : null);
             t.setAdditionalGenres(f.getAdditionalGenres() != null
                     ? f.getAdditionalGenres().stream().map(Genre::name).collect(Collectors.toList()) : null);
@@ -442,7 +442,7 @@ public class LibraryService {
                     .artist(t.getArtist())
                     .album(t.getAlbum())
                     .title(t.getTitle())
-                    .year(t.getYear())
+                    .year(com.stellarideas.grooves.util.YearParser.parse(t.getYear()))
                     .genre(genre)
                     .additionalGenres(additional)
                     .rating(t.getRating())

@@ -14,7 +14,7 @@ public class MusicFileDTO {
     private String artist;
     private String album;
     private String title;
-    private String year;
+    private Integer year;
     private String genre;
     private List<String> additionalGenres;
     private int rating;
@@ -62,8 +62,8 @@ public class MusicFileDTO {
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
 
-    public String getYear() { return year; }
-    public void setYear(String year) { this.year = year; }
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 
     public String getGenre() { return genre; }
     public void setGenre(String genre) { this.genre = genre; }
