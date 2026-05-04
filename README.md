@@ -2,7 +2,54 @@
 
 A self-hosted, multi-user music library for rock and metal collections — built around **smart playlists you can share as queries**. Scan local directories for audio files, auto-categorize tracks by sub-genre, build smart playlists with a focused query DSL (and reusable `@phrase` fragments), publish them so other curators can run your queries against their own libraries, manage regular playlists with drag-drop reordering, rate your favorites, resolve duplicates, and stream everything in the browser with a retro jukebox-themed UI. Installable as a Progressive Web App on desktop and mobile.
 
-Built with Spring Boot, MongoDB, and vanilla JavaScript. See [HOW_TO_USE.md](HOW_TO_USE.md) for an end-to-end walkthrough of the everyday browser flow.
+Built with Spring Boot, MongoDB, and vanilla JavaScript.
+
+![Stellar Grooves library view](docs/screenshots/library-overview.png)
+
+> **A curator's library.** Write a smart playlist, publish the share link, and other curators run your *query* against their *own* libraries — they only ever see tracks they themselves own.
+
+## Documentation
+
+- **[HOW_TO_USE.md](HOW_TO_USE.md)** — end-to-end walkthrough of the everyday browser flow (signup, scanning, smart playlists, sharing).
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — how to set up a dev environment, run tests, and submit PRs.
+- **[SECURITY.md](SECURITY.md)** — how to report a vulnerability privately.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/smart-playlist-editor.png"><img src="docs/screenshots/smart-playlist-editor.png" alt="Smart playlist editor with live match count" /></a>
+      <br /><sub><b>Smart playlist editor</b> — live match count and preview</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/jukeplayer.png"><img src="docs/screenshots/jukeplayer.png" alt="Jukebox-themed player bar with crossfade and queue" /></a>
+      <br /><sub><b>Jukebox player</b> — crossfade, queue, media-session controls</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/rediscover-playlists.png"><img src="docs/screenshots/rediscover-playlists.png" alt="Listening rediscovery: forgotten tracks, neglected favorites, one-hit wonders" /></a>
+      <br /><sub><b>Listening rediscovery</b> — forgotten tracks, neglected favorites, one-hit wonders</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/listening-history.png"><img src="docs/screenshots/listening-history.png" alt="Listening history with Recently Played, Top Tracks, Top Artists" /></a>
+      <br /><sub><b>Listening history</b> — Recently Played · Top Tracks · Top Artists</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/mobile-pwa.png"><img src="docs/screenshots/mobile-pwa.png" alt="Mobile PWA layout" /></a>
+      <br /><sub><b>Mobile / PWA</b> — installable on iOS and Android home screens</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/screenshots/login-screen.png"><img src="docs/screenshots/login-screen.png" alt="Login screen" /></a>
+      <br /><sub><b>Login</b> — form auth with rate limiting and account lockout</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
