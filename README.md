@@ -1,4 +1,4 @@
-![Stellar Grooves](docs/readme-banner.png)
+<img src="src/main/resources/static/images/icon-512-notes.png" alt="Stellar Grooves" align="right" width="160">
 
 # Stellar Grooves
 
