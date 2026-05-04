@@ -82,7 +82,7 @@ SG.navigate = (n) => navigate(n);
 SG.updateStats = () => updateStats();
 SG.renderPlaylistSidebar = () => renderPlaylistSidebar();
 function genreBadge(g) { const s = document.createElement('span'); s.className = 'badge ' + (GENRE_CLASSES[g] || 'genre-OTHER'); s.textContent = GENRE_LABELS[g] || 'Other'; return s; }
-function decadeFromYear(y) { if (!y || y.length < 4) return '\u2014'; const n = parseInt(y.substring(0, 4), 10); return isNaN(n) ? '\u2014' : Math.floor(n / 10) * 10 + 's'; }
+function decadeFromYear(y) { if (!y) return '\u2014'; const s = String(y); if (s.length < 4) return '\u2014'; const n = parseInt(s.substring(0, 4), 10); return isNaN(n) ? '\u2014' : Math.floor(n / 10) * 10 + 's'; }
 async function guardClick(btn, fn) { if (btn.disabled) return; btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } }
 function showToast(message, type = 'error', durationMs = 3500) {
     const container = document.getElementById('toastContainer'); if (!container) return;
