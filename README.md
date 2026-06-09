@@ -191,7 +191,7 @@ $env:JWT_SECRET = [Convert]::ToBase64String((1..64 | ForEach-Object { Get-Random
 mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
-The app starts at **http://localhost:8080**.
+The app starts at **http://localhost:8089**.
 
 ### Docker
 
@@ -253,13 +253,13 @@ All settings live in `src/main/resources/application.properties` and can be over
 | `stellar.grooves.jwtExpirationMs` | `JWT_EXPIRATION_MS` | `900000` (15 min) | Access token lifetime in milliseconds |
 | `stellar.grooves.refreshTokenExpirationMs` | `REFRESH_TOKEN_EXPIRATION_MS` | `604800000` (7 days) | Refresh token lifetime in milliseconds |
 | `stellar.grooves.swagger.enabled` | — | `false` | Enable/disable Swagger UI and OpenAPI endpoints (enable explicitly in dev) |
-| `server.port` | `PORT` | `8080` | HTTP listen port |
+| `server.port` | `PORT` | `8089` | HTTP listen port |
 
 ### Security & Rate Limiting
 
 | Property | Env var | Default | Description |
 |----------|---------|---------|-------------|
-| `stellar.grooves.cors.allowedOrigins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:8080,http://127.0.0.1:8080` | Comma-separated CORS origin patterns |
+| `stellar.grooves.cors.allowedOrigins` | `CORS_ALLOWED_ORIGINS` | `http://localhost:8089,http://127.0.0.1:8089` | Comma-separated CORS origin patterns |
 | `stellar.grooves.login.maxFailedAttempts` | `LOGIN_MAX_FAILED_ATTEMPTS` | `5` | Failed login attempts before account lockout |
 | `stellar.grooves.login.lockoutDurationMinutes` | `LOGIN_LOCKOUT_MINUTES` | `15` | Minutes before a locked account auto-unlocks |
 | `stellar.grooves.rateLimit.maxRequests` | — | `10` | Max general auth requests per IP per window |
@@ -329,7 +329,7 @@ All settings live in `src/main/resources/application.properties` and can be over
 | `stellar.grooves.email.verificationRequired` | `EMAIL_VERIFICATION_REQUIRED` | `false` | Require email verification before login |
 | `stellar.grooves.mail.enabled` | `MAIL_ENABLED` | `false` | Enable sending emails (verification + password reset) |
 | `stellar.grooves.mail.from` | `MAIL_FROM` | `noreply@stellargrooves.local` | Sender address for emails |
-| `stellar.grooves.baseUrl` | `BASE_URL` | `http://localhost:8080` | Base URL used in email links |
+| `stellar.grooves.baseUrl` | `BASE_URL` | `http://localhost:8089` | Base URL used in email links |
 
 When `EMAIL_VERIFICATION_REQUIRED=true`, new users receive a verification email with a 24-hour link. Login is blocked until the email is verified. When disabled (default), accounts are automatically verified on creation for backward compatibility.
 
@@ -339,7 +339,7 @@ When `EMAIL_VERIFICATION_REQUIRED=true`, new users receive a verification email 
 
 | Profile | Activate with | Description |
 |---------|--------------|-------------|
-| `dev` | `--spring.profiles.active=dev` | Debug logging, Thymeleaf cache disabled, CORS allows `localhost:8080`, Swagger enabled |
+| `dev` | `--spring.profiles.active=dev` | Debug logging, Thymeleaf cache disabled, CORS allows `localhost:8089`, Swagger enabled |
 | `prod` | `--spring.profiles.active=prod` | INFO logging, requires `CORS_ALLOWED_ORIGINS` env var, trusts proxy headers from configured IPs, Swagger disabled, audit + app logs written to files |
 | `json-logging` | `--spring.profiles.active=prod,json-logging` | Structured JSON console output via Logstash encoder; use with `prod` for centralized log aggregation (ELK, Grafana Loki) |
 | `file-logging` | `--spring.profiles.active=dev,file-logging` | Force rolling file appenders for app + audit logs even outside `prod` (useful in dev when you need persistent logs without enabling the full prod profile) |
@@ -416,8 +416,8 @@ The JSON format maps artist names to arrays of genre values:
 
 ## First Use
 
-1. Open **http://localhost:8080/signup** and create an account.
-2. Log in at **http://localhost:8080/login**.
+1. Open **http://localhost:8089/signup** and create an account.
+2. Log in at **http://localhost:8089/login**.
 3. Enter the absolute path to a music directory (e.g. `/home/user/Music`) and click **Start Scan**.
 4. Watch real-time progress as files are scanned, imported, and categorized.
 5. Tracks appear in the library with extracted metadata, genre classification, and album art.
@@ -453,7 +453,7 @@ The JSON format maps artist names to arrays of genre values:
 A health endpoint is available at `/actuator/health` (no authentication required). It reports basic application status. Detailed health information (including MongoDB connectivity) is only shown to authenticated users (`show-details=when-authorized`).
 
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:8089/actuator/health
 # {"status":"UP"}
 ```
 
@@ -494,7 +494,7 @@ A short checklist for self-hosters running Stellar Grooves on a public network.
 
 ## REST API
 
-> **Interactive docs:** Browse the full API at [/swagger-ui.html](http://localhost:8080/swagger-ui.html) when the app is running. The OpenAPI spec is available at `/api-docs`.
+> **Interactive docs:** Browse the full API at [/swagger-ui.html](http://localhost:8089/swagger-ui.html) when the app is running. The OpenAPI spec is available at `/api-docs`.
 
 All endpoints under `/api/v1/library/*`, `/api/v1/playlists/*`, and `/api/v1/admin/*` require authentication. Use the session cookie from form login, or pass a JWT via the `Authorization: Bearer <token>` header (obtained from `/api/v1/auth/signin`).
 

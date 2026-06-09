@@ -26,9 +26,9 @@ RUN chown grooves:grooves app.jar
 
 USER grooves
 
-EXPOSE 8080
+EXPOSE 8089
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -sf http://localhost:8080/actuator/health || exit 1
+    CMD curl -sf http://localhost:8089/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -2,16 +2,16 @@
 
 Stellar Grooves is a self-hosted music library for rock and metal collections. This guide walks through the everyday browser flow: signing up, scanning a music directory, and using the curator-focused features (smart playlists, phrases, sharing).
 
-For installation and configuration, see [`README.md`](README.md). This document assumes the app is already running at `http://localhost:8080`.
+For installation and configuration, see [`README.md`](README.md). This document assumes the app is already running at `http://localhost:8089`.
 
 ---
 
 ## 1. Create your account
 
-1. Open <http://localhost:8080/signup>.
+1. Open <http://localhost:8089/signup>.
 2. Pick a username, enter your email, and choose a password (min 8 characters, with at least one uppercase letter, one lowercase letter, and one digit).
 3. If email verification is enabled (`EMAIL_VERIFICATION_REQUIRED=true`), check your inbox for a verification link before logging in.
-4. Log in at <http://localhost:8080/login>.
+4. Log in at <http://localhost:8089/login>.
 
 > Form login uses a session cookie + CSRF token automatically. You only need a JWT if you're calling the API from a script or a non-browser client — see the API section in `README.md`.
 
@@ -169,7 +169,7 @@ Sun/moon button in the navbar toggles between the dark jukebox theme and the lig
 
 ## 11. Admin
 
-Admin users can open <http://localhost:8080/admin> for:
+Admin users can open <http://localhost:8089/admin> for:
 
 - System stats (total users, files, playlists).
 - Paginated user list with per-user file counts.
@@ -179,8 +179,8 @@ To create an admin on first start, set `ADMIN_PASSWORD` (and optionally `ADMIN_U
 
 ## 12. Help & API docs
 
-- Built-in user guide: <http://localhost:8080/help> (no login required, also linked from login/signup pages).
-- Interactive API docs: <http://localhost:8080/swagger-ui.html> (dev profile only).
+- Built-in user guide: <http://localhost:8089/help> (no login required, also linked from login/signup pages).
+- Interactive API docs: <http://localhost:8089/swagger-ui.html> (dev profile only).
 - OpenAPI spec: `/api-docs`.
 
 For full endpoint reference, profile configuration, and deployment notes, see [`README.md`](README.md).

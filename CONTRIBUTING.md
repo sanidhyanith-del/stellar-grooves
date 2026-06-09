@@ -25,7 +25,7 @@ docker compose up -d mongo    # or point MONGO_URI at your own instance
 mvn spring-boot:run
 ```
 
-The app starts on `http://localhost:8080`. See `HOW_TO_USE.md` for what to do
+The app starts on `http://localhost:8089`. See `HOW_TO_USE.md` for what to do
 next.
 
 ## Running tests
