@@ -26,7 +26,11 @@ services:
     environment:
       MONGO_URI: mongodb://mongo:27017/stellar_grooves_demo
       JWT_SECRET: "${JWT_SECRET:?Set JWT_SECRET in demo/.env - generate with openssl rand -base64 32}"
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      # prod profile keeps file-logging off (the container is read-only) and
+      # applies secure defaults (Swagger disabled, proxy-aware rate limiting).
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      # Required under the prod profile. Set to your public demo URL.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8089}
       MAIL_ENABLED: "false"
       EMAIL_VERIFICATION_REQUIRED: "false"
       # Disable self-signup and surface/pre-fill the demo login so visitors
