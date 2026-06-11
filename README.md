@@ -114,7 +114,7 @@ Built with Spring Boot, MongoDB, and vanilla JavaScript.
 - **Per-user scan locking** — only one scan can run per user at a time; concurrent scan attempts are rejected, preventing cover art quota race conditions
 - **Security** — CSRF protection (HttpOnly cookies with meta-tag delivery), rate limiting on auth and scan endpoints (with proxy-aware IP detection, trusted proxy validation, and `Retry-After` header), stricter IP-based rate limiting on login/signup endpoints (separate bucket, default 5 req/min), configurable CORS origins (explicit origins, not patterns), path traversal prevention on scan and stream endpoints, symlink detection, server-side input validation with typed DTOs and `@Size`/`@Pattern` constraints on search and scan parameters, Content Security Policy headers (no `unsafe-inline` for scripts), Permissions-Policy header (disables geolocation, microphone, camera, payment, USB), password complexity requirements (enforced on both signup and password reset), case-insensitive username normalization (prevents `User`/`user` duplicates), JWT with `jti`/`iss` claims and full role propagation on token refresh, token blacklisting on both logout and refresh, regex search query timeout (5s) and length limit (200 chars)
 - **RFC 7807 error responses** — all API error responses follow the Problem Details standard (`type`, `title`, `status`, `detail`) with backwards-compatible `error` property
-- **Audit logging** — dedicated `AUDIT` logger routed to a separate `logs/audit.log` file with 90-day retention; structured MDC context tracks all security-sensitive operations: logins, signups, password resets, file deletions, genre changes, playlist modifications, and admin actions
+- **Audit logging** — dedicated `AUDIT` logger with structured MDC context tracking all security-sensitive operations: logins, signups, password resets, file deletions, genre changes, playlist modifications, and admin actions; emitted to stdout under `prod`, or to a rolling `logs/audit.log` (90-day retention) when file logging is enabled
 - **API documentation** — interactive Swagger UI at `/swagger-ui.html` with OpenAPI 3.0 spec at `/api-docs`; JWT bearer auth support; disabled in production profile
 - **API versioning** — all REST endpoints under `/api/v1/` for forward compatibility
 - **Structured logging** — correlation IDs on every request (`X-Correlation-Id` header), MDC-based log pattern for request tracing; optional JSON log output for production via Logstash encoder (activate with `json-logging` profile); client-side correlation IDs automatically sent in fetch headers for end-to-end tracing
@@ -355,10 +355,10 @@ When `EMAIL_VERIFICATION_REQUIRED=true`, new users receive a verification email 
 
 | Profile | Activate with | Description |
 |---------|--------------|-------------|
-| `dev` | `--spring.profiles.active=dev` | Debug logging, Thymeleaf cache disabled, CORS allows `localhost:8089`, Swagger enabled |
-| `prod` | `--spring.profiles.active=prod` | INFO logging, requires `CORS_ALLOWED_ORIGINS` env var, trusts proxy headers from configured IPs, Swagger disabled, audit + app logs written to files |
+| `dev` | `--spring.profiles.active=dev` | Debug logging, Thymeleaf cache disabled, CORS allows `localhost:8089`, Swagger enabled; app + audit logs written to rolling files in `./logs` |
+| `prod` | `--spring.profiles.active=prod` | INFO logging, requires `CORS_ALLOWED_ORIGINS` env var, trusts proxy headers from configured IPs, Swagger disabled; logs to stdout only (file appenders off — add `file-logging` to also write `./logs`) |
 | `json-logging` | `--spring.profiles.active=prod,json-logging` | Structured JSON console output via Logstash encoder; use with `prod` for centralized log aggregation (ELK, Grafana Loki) |
-| `file-logging` | `--spring.profiles.active=dev,file-logging` | Force rolling file appenders for app + audit logs even outside `prod` (useful in dev when you need persistent logs without enabling the full prod profile) |
+| `file-logging` | `--spring.profiles.active=prod,file-logging` | Force rolling file appenders for app + audit logs under `prod` (which otherwise logs only to stdout); requires a writable `./logs` volume, since the prod container is read-only |
 
 When no profile is active, the base `application.properties` defaults apply.
 
